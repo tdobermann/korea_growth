@@ -1,4 +1,4 @@
-"""Household preferences, expenditure shares, and migration.
+r"""Household preferences, expenditure shares, and migration.
 
 This module mirrors the household block in `baseline.py`:
 
@@ -15,7 +15,7 @@ from .types import ModelDimensions, ModelParameters, ModelExogenousPaths
 
 
 def composite_price(P_row: np.ndarray, alpha_j: np.ndarray) -> float:
-    """Compute \prod_j P_j^{alpha_j} in a numerically stable manner."""
+    r"""Compute \prod_j P_j^{alpha_j} in a numerically stable manner."""
     P_row = np.asarray(P_row, dtype=float)
     alpha_j = np.asarray(alpha_j, dtype=float)
     return float(np.exp(np.sum(alpha_j * np.log(P_row))))
@@ -28,7 +28,7 @@ def indirect_utility(
     v_j: np.ndarray,
     eta: float,
 ) -> float:
-    """Consumer indirect utility V.
+    r"""Consumer indirect utility V.
 
     Matches `baseline.py`:
 
@@ -54,7 +54,7 @@ def expenditure_shares(
     v_j: np.ndarray,
     eta: float,
 ) -> np.ndarray:
-    """Vector of non-homothetic expenditure shares psi_j.
+    r"""Vector of non-homothetic expenditure shares psi_j.
 
     Matches `baseline.py`:
 

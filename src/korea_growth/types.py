@@ -37,6 +37,7 @@ class ModelDimensions:
     sectors: Sequence[str]
     agri_sector: str = "Agri"
     heavy_mnf_sector: str = "HeavyMnf"
+    services_sector: str = "Services"
 
     @property
     def T(self) -> int:
@@ -57,6 +58,10 @@ class ModelDimensions:
     @property
     def heavy_idx(self) -> Optional[int]:
         return self.sectors.index(self.heavy_mnf_sector) if self.heavy_mnf_sector in self.sectors else None
+
+    @property
+    def services_idx(self) -> Optional[int]:
+        return self.sectors.index(self.services_sector) if self.services_sector in self.sectors else None
 
 
 @dataclass(frozen=True)

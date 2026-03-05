@@ -1,4 +1,4 @@
-"""Production-side primitives.
+r"""Production-side primitives.
 
 This module contains:
 
@@ -28,7 +28,7 @@ def unit_cost_bundle(
     gamma: np.ndarray,
     gamma_io: np.ndarray,
 ) -> np.ndarray:
-    """Compute unit cost c_{o,j} for all regions o, for one sector j.
+    r"""Compute unit cost c_{o,j} for all regions o, for one sector j.
 
     Parameters
     ----------
@@ -64,10 +64,15 @@ def unit_cost_bundle(
     gamma = np.asarray(gamma, dtype=float)
     gamma_io = np.asarray(gamma_io, dtype=float)
 
-    # Material-input cost term: prod_k (P_{o,k} / gamma_{o,jk})^{gamma_{o,jk}}
-    # We compute in logs for stability.
+    # Material-input cost term: prod_k (P_{o,k} / gamma_{o,jk})^{gamma_{o,jk}}.
+    # Zero input shares contribute exactly zero in logs, so handle them explicitly.
+    log_material_terms = np.zeros_like(gamma_io, dtype=float)
+    positive_mask = gamma_io > 0.0
     with np.errstate(divide="raise", invalid="raise"):
-        log_material = np.sum(gamma_io * (np.log(P) - np.log(gamma_io)), axis=1)
+        log_material_terms[positive_mask] = gamma_io[positive_mask] * (
+            np.log(P)[positive_mask] - np.log(gamma_io[positive_mask])
+        )
+    log_material = np.sum(log_material_terms, axis=1)
 
     # Value-added (r,w) term
     va_inner = (1.0 / gamma) * np.power(r / beta, beta) * np.power(w / (1.0 - beta), 1.0 - beta)

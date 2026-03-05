@@ -1,0 +1,453 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\title{A Primer on the Implemented Korea Spatial GE Model}
+\author{}
+\date{\today}
+
+\newcommand{\R}{\mathcal{N}}
+\newcommand{\Sct}{\mathcal{J}}
+\newcommand{\E}{\mathbb{E}}
+
+\begin{document}
+\maketitle
+
+\section{Purpose}
+This note documents the quantitative model implemented in the \texttt{korea\_growth}
+package. It is a background primer rather than a full theory paper: the goal is to
+state the objects, equilibrium conditions, and numerical solution method that are
+actually used by the code.
+
+The implementation solves a sequence of static spatial equilibria. The only dynamic
+state is lagged population, so period $t$ equilibrium takes $L_{t-1}$ as given and
+returns $(w_t,r_t,P_t,E_t,L_t,\bar\tau_t,\bar\pi_t)$.
+
+\section{Environment}
+Time is discrete, $t = 1,\dots,T$. Regions are indexed by $o,d \in \R$ and sectors by
+$j,k \in \Sct$. Let $N = |\R|$ and $J = |\Sct|$.
+
+The exogenous inputs in period $t$ are:
+\begin{itemize}[leftmargin=1.5em]
+\item regional amenities $\bar V_{d,t}$,
+\item domestic trade costs $\tau_{odj,t} \ge 1$ and import costs $\tilde\tau_{oj,t} \ge 1$,
+\item migration costs $\delta_{od,t} \ge 1$,
+\item sectoral productivities $A_{oj,t}$,
+\item land shares $\beta_{oj,t}$ and value-added shares $\gamma_{oj,t}$,
+\item input-output shares $\gamma^{IO}_{ojk,t}$,
+\item fixed costs $F_{oj,t}$, export fixed costs $\tilde F_{oj,t}$, and adoption fixed costs
+      $\breve F_{oj,t}$,
+\item subsidy rates $s_{oj,t}$,
+\item foreign demand shifters $\tilde D_{j,t}$ and foreign prices $\tilde p_{j,t}$,
+\item land or structures supply $H_{o,t}$,
+\item the mass of potential firms $M_{j,t}$.
+\end{itemize}
+
+For the agriculture sector there is an alternative mechanized technology with
+$(\breve\beta_{oj,t}, \breve\gamma_{oj,t}, \breve\gamma^{IO}_{ojk,t})$ and efficiency gain
+$\xi > 1$.
+
+The structural parameters are:
+\[
+\sigma > 1,\quad \theta > 0,\quad \kappa > 1,\quad \rho_j \in (0,1),\quad
+\iota \in (-1,0),\quad \nu > 0,\quad \eta \in \mathbb{R},
+\]
+together with expenditure parameters $\alpha_j$ and $v_j$ satisfying
+$\sum_j \alpha_j = 1$ and $\sum_j v_j = 0$.
+
+\section{Households}
+\subsection{Disposable income and indirect utility}
+Per-capita disposable income in region $d$ is
+\begin{equation}
+  y^{pc}_{d,t} = (1 - \bar\tau_t + \bar\pi_t) w_{d,t},
+\end{equation}
+where $\bar\tau_t$ is the proportional tax needed to finance subsidies and infrastructure
+and $\bar\pi_t$ is aggregate profit income rebated in wage units.
+
+Given sectoral price indices $P_{djt}$, define the composite price index
+\begin{equation}
+  \mathcal{P}_{d,t} = \prod_{j \in \Sct} P_{djt}^{\alpha_j}.
+\end{equation}
+The implemented indirect utility is
+\begin{equation}
+  V_{d,t} =
+  \begin{cases}
+    \dfrac{1}{\eta} \left( \dfrac{y^{pc}_{d,t}}{\mathcal{P}_{d,t}} \right)^{\eta}
+    - \sum_j v_j \log P_{djt}, & \eta \ne 0, \\[1em]
+    \log\!\left(\dfrac{y^{pc}_{d,t}}{\mathcal{P}_{d,t}}\right)
+    - \sum_j v_j \log P_{djt}, & \eta = 0.
+  \end{cases}
+\end{equation}
+
+\subsection{Migration}
+Lagged population $L_{d,t-1}$ enters destination utility through congestion:
+\begin{equation}
+  g_{d,t} = L_{d,t-1}^{\iota}.
+\end{equation}
+The common component of utility from moving to $d$ is
+\begin{equation}
+  U^{com}_{d,t} = \bar V_{d,t} g_{d,t} V_{d,t}.
+\end{equation}
+An agent starting in origin $o$ values destination $d$ at
+\begin{equation}
+  U_{od,t} = \frac{U^{com}_{d,t}}{\delta_{od,t}}.
+\end{equation}
+Migration shares are multinomial-logit in levels:
+\begin{equation}
+  \mu_{od,t} = \frac{U_{od,t}^{\nu}}{\sum_{d' \in \R} U_{od',t}^{\nu}}.
+\end{equation}
+Population evolves according to
+\begin{equation}
+  L_{d,t} = \sum_{o \in \R} \mu_{od,t} L_{o,t-1}.
+\end{equation}
+
+\subsection{Non-homothetic final demand}
+Expenditure shares in destination $d$ are
+\begin{equation}
+  \psi_{dj,t}
+  = \alpha_j + v_j \left( \frac{y^{pc}_{d,t}}{\mathcal{P}_{d,t}} \right)^{-\eta}.
+\end{equation}
+Final consumption expenditure is
+\begin{equation}
+  E^{F}_{dj,t} = \psi_{dj,t} y^{pc}_{d,t} L_{d,t}.
+\end{equation}
+
+\section{Production and firm heterogeneity}
+\subsection{Unit costs and agglomeration}
+Agglomeration is sector specific:
+\begin{equation}
+  f_{oj,t} = L_{o,t-1}^{\rho_j}.
+\end{equation}
+
+For the baseline technology, unit cost in region $o$ and sector $j$ is
+\begin{equation}
+  c_{oj,t}
+  =
+  \left[
+    \frac{1}{\gamma_{oj,t}}
+    \left( \frac{r_{o,t}}{\beta_{oj,t}} \right)^{\beta_{oj,t}}
+    \left( \frac{w_{o,t}}{1-\beta_{oj,t}} \right)^{1-\beta_{oj,t}}
+  \right]^{\gamma_{oj,t}}
+  \prod_{k \in \Sct}
+  \left( \frac{P_{ok,t}}{\gamma^{IO}_{ojk,t}} \right)^{\gamma^{IO}_{ojk,t}}.
+\end{equation}
+The mechanized agricultural technology has an analogous unit cost
+$\breve c_{oj,t}$ built from $(\breve\beta,\breve\gamma,\breve\gamma^{IO})$.
+
+\subsection{Productivity draws}
+Potential entrants draw idiosyncratic productivity $\phi \in [1,\kappa]$ from a bounded
+Pareto distribution with cdf
+\begin{equation}
+  G(\phi) = \frac{1 - \phi^{-\theta}}{1 - \kappa^{-\theta}},
+  \qquad \phi \in [1,\kappa],
+\end{equation}
+and density
+\begin{equation}
+  g(\phi) = \frac{\theta \phi^{-\theta-1}}{1 - \kappa^{-\theta}}.
+\end{equation}
+The main integral used by the code is
+\begin{equation}
+  I(a,b) = \int_a^b \phi^{\sigma-1} g(\phi)\, d\phi.
+\end{equation}
+
+\subsection{Demand shifter}
+Given destination expenditures and prices, origin $o$ faces sector-$j$ demand shifter
+\begin{equation}
+  S_{oj,t}
+  = \sum_{d \in \R} \tau_{odj,t}^{1-\sigma} P_{djt}^{\sigma-1} E_{dj,t}.
+\end{equation}
+
+\subsection{Entry, adoption, and export cutoffs}
+The zero-profit entry cutoff is implemented as
+\begin{equation}
+  \bar\phi_{oj,t}
+  =
+  \max\left\{
+    1,\,
+    \frac{\sigma}{\sigma-1}
+    \frac{1-s_{oj,t}}{A_{oj,t} f_{oj,t}}
+    \sigma^{\frac{1}{\sigma-1}}
+    c_{oj,t}
+    \left( \frac{F_{oj,t}}{S_{oj,t}} \right)^{\frac{1}{\sigma-1}}
+  \right\}.
+\end{equation}
+
+For agriculture, the adoption cutoff uses the mechanization benefit term
+\begin{equation}
+  B_{oj,t}
+  =
+  \left[
+    \left( \xi \frac{c_{oj,t}}{\breve c_{oj,t}} \right)^{\sigma-1} - 1
+  \right]^{\frac{1}{1-\sigma}},
+\end{equation}
+whenever the expression in brackets is positive. Then
+\begin{equation}
+  \breve\phi_{oj,t}
+  =
+  \max\left\{
+    1,\,
+    \frac{\sigma}{\sigma-1}
+    \frac{1-s_{oj,t}}{A_{oj,t} f_{oj,t}}
+    \sigma^{\frac{1}{\sigma-1}}
+    c_{oj,t} B_{oj,t}
+    \left( \frac{\breve F_{oj,t}}{S_{oj,t}} \right)^{\frac{1}{\sigma-1}}
+  \right\}.
+\end{equation}
+If the benefit term is non-positive, the code sets $\breve\phi_{oj,t} = \infty$ and
+mechanized adoption never occurs.
+
+The export cutoff is
+\begin{equation}
+  \tilde\phi_{oj,t}
+  =
+  \max\left\{
+    1,\,
+    \frac{\sigma}{\sigma-1}
+    \frac{1-s_{oj,t}}{A_{oj,t} f_{oj,t}}
+    \sigma^{\frac{1}{\sigma-1}}
+    c_{oj,t}
+    \left(
+      \frac{\tilde F_{oj,t}}
+      {\tilde\tau_{oj,t}^{1-\sigma} \tilde D_{j,t}}
+    \right)^{\frac{1}{\sigma-1}}
+    \times \chi_{oj,t}
+  \right\},
+\end{equation}
+where $\chi_{oj,t} = (\breve c_{oj,t}/c_{oj,t}) / \xi$ for agriculture and
+$\chi_{oj,t} = 1$ otherwise.
+
+\subsection{Productivity aggregates}
+Define
+\begin{align}
+  Z_{oj,t} &= A_{oj,t} f_{oj,t} I(\bar\phi_{oj,t}, \bar b_{oj,t})^{\frac{1}{\sigma-1}}, \\
+  \breve Z_{oj,t} &= A_{oj,t} f_{oj,t} I(\breve\phi_{oj,t}, \kappa)^{\frac{1}{\sigma-1}}, \\
+  \tilde Z_{oj,t} &= A_{oj,t} f_{oj,t} \chi^x_j I(\tilde\phi_{oj,t}, \kappa)^{\frac{1}{\sigma-1}},
+\end{align}
+where $\bar b_{oj,t} = \min\{\breve\phi_{oj,t}, \kappa\}$ in agriculture and
+$\bar b_{oj,t} = \kappa$ otherwise, and $\chi^x_j = \xi$ for agriculture and $1$ otherwise.
+
+\section{Sectoral price indices and revenues}
+\subsection{Price indices}
+Let
+\begin{equation}
+  \Omega_{oj,t}
+  =
+  M_{j,t}
+  \left( \frac{\sigma}{\sigma-1}(1-s_{oj,t}) \right)^{1-\sigma}.
+\end{equation}
+The baseline and mechanized domestic supply terms are
+\begin{align}
+  B^{trad}_{oj,t} &= \Omega_{oj,t} \left( \frac{Z_{oj,t}}{c_{oj,t}} \right)^{\sigma-1}, \\
+  B^{new}_{oj,t} &=
+  \begin{cases}
+    \Omega_{oj,t} \left( \dfrac{\breve Z_{oj,t}}{\breve c_{oj,t}} \right)^{\sigma-1},
+    & \text{agriculture}, \\
+    0, & \text{otherwise}.
+  \end{cases}
+\end{align}
+Then the destination-$d$ price index in sector $j$ satisfies
+\begin{equation}
+  P_{djt}^{1-\sigma}
+  =
+  \sum_{o \in \R} \left( B^{trad}_{oj,t} + B^{new}_{oj,t} \right) \tau_{odj,t}^{1-\sigma}
+  + (\tilde\tau_{dj,t} \tilde p_{j,t})^{1-\sigma}.
+\end{equation}
+
+\subsection{Domestic and foreign revenues}
+Domestic revenues are
+\begin{align}
+  R^{trad}_{oj,t} &= B^{trad}_{oj,t} S_{oj,t}, \\
+  R^{new}_{oj,t} &= B^{new}_{oj,t} S_{oj,t}, \\
+  R^{dom}_{oj,t} &= R^{trad}_{oj,t} + R^{new}_{oj,t}.
+\end{align}
+
+Export revenue is
+\begin{equation}
+  R^{x}_{oj,t}
+  =
+  M_{j,t}
+  \left(
+    \frac{\sigma}{\sigma-1}
+    (1-s_{oj,t}) \tilde\tau_{oj,t}
+  \right)^{1-\sigma}
+  \left( \frac{\tilde Z_{oj,t}}{c^x_{oj,t}} \right)^{\sigma-1}
+  \tilde D_{j,t},
+\end{equation}
+where $c^x_{oj,t} = \breve c_{oj,t}$ for agriculture and $c^x_{oj,t} = c_{oj,t}$ otherwise.
+Gross output is
+\begin{equation}
+  Y_{oj,t} = R^{dom}_{oj,t} + R^{x}_{oj,t}.
+\end{equation}
+
+The mass of active firms, exporters, and adopters is
+\begin{align}
+  N^{firm}_{oj,t} &= M_{j,t} [1 - G(\bar\phi_{oj,t})], \\
+  N^{x}_{oj,t} &= M_{j,t} [1 - G(\tilde\phi_{oj,t})], \\
+  N^{adopt}_{oj,t} &=
+  \begin{cases}
+    M_{j,t} [1 - G(\breve\phi_{oj,t})], & \text{agriculture}, \\
+    0, & \text{otherwise}.
+  \end{cases}
+\end{align}
+
+\section{Goods markets and factor markets}
+\subsection{Expenditure system}
+Under CES demand with constant markups, variable costs are a fixed share of revenues:
+\begin{align}
+  VC_{oj,t} &= \frac{\sigma-1}{\sigma}
+  \left( R^{trad}_{oj,t} + R^{new}_{oj,t} + R^{x}_{oj,t} \right), \\
+  VC^{trad}_{oj,t} &= \frac{\sigma-1}{\sigma} R^{trad}_{oj,t}, \\
+  VC^{new}_{oj,t} &= \frac{\sigma-1}{\sigma}
+  \left( R^{new}_{oj,t} + R^{x}_{oj,t} \right).
+\end{align}
+
+Local intermediate demand for sector $j$ in region $o$ is constructed from sectoral
+variable costs:
+\begin{equation}
+  E^{M}_{oj,t} = \sum_{k \in \Sct} VC_{ok,t} \gamma^{IO}_{okj,t},
+\end{equation}
+except in agriculture, where the code replaces the baseline input share on the
+agricultural output block with
+\begin{equation}
+  VC^{trad}_{oa,t} \gamma^{IO}_{oak,t}
+  + VC^{new}_{oa,t} \breve\gamma^{IO}_{oak,t}.
+\end{equation}
+Total expenditure is
+\begin{equation}
+  E_{oj,t} = E^{F}_{oj,t} + E^{M}_{oj,t}.
+\end{equation}
+
+\subsection{Factor prices}
+Labor income equals the labor share of variable costs and land income equals the land
+share of variable costs. For non-agriculture,
+\begin{align}
+  w_{o,t} L_{o,t} &= \sum_j (1-\beta_{oj,t}) \gamma_{oj,t} VC_{oj,t}, \\
+  r_{o,t} H_{o,t} &= \sum_j \beta_{oj,t} \gamma_{oj,t} VC_{oj,t}.
+\end{align}
+For agriculture, the code splits baseline and mechanized production:
+\begin{align}
+  w_{o,t} L_{o,t}
+  &=
+  (1-\beta_{oa,t}) \gamma_{oa,t} VC^{trad}_{oa,t}
+  + (1-\breve\beta_{oa,t}) \breve\gamma_{oa,t} VC^{new}_{oa,t}
+  + \sum_{j \ne a} (1-\beta_{oj,t}) \gamma_{oj,t} VC_{oj,t}, \\
+  r_{o,t} H_{o,t}
+  &=
+  \beta_{oa,t} \gamma_{oa,t} VC^{trad}_{oa,t}
+  + \breve\beta_{oa,t} \breve\gamma_{oa,t} VC^{new}_{oa,t}
+  + \sum_{j \ne a} \beta_{oj,t} \gamma_{oj,t} VC_{oj,t}.
+\end{align}
+
+\section{Government budget and profit rebate}
+Aggregate wage income is
+\begin{equation}
+  W_t = \sum_{o \in \R} w_{o,t} L_{o,t}.
+\end{equation}
+Aggregate profits are
+\begin{equation}
+  \Pi_t
+  =
+  \sum_{o \in \R} \sum_{j \in \Sct}
+  \left[
+    \frac{1}{\sigma} Y_{oj,t}
+    - N^{firm}_{oj,t} F_{oj,t}
+    - N^{x}_{oj,t} \tilde F_{oj,t}
+    - N^{adopt}_{oj,t} \breve F_{oj,t}
+  \right].
+\end{equation}
+The profit rebate is
+\begin{equation}
+  \bar\pi_t = \frac{\Pi_t}{W_t}.
+\end{equation}
+
+Subsidy and infrastructure spending imply
+\begin{equation}
+  \bar\tau_t
+  =
+  \frac{
+    \sum_{o,j} \frac{\sigma-1}{\sigma} s_{oj,t} Y_{oj,t}
+    + G^{infra}_t
+  }{W_t},
+\end{equation}
+where $G^{infra}_t$ is exogenous road and building expenditure.
+
+\section{Static equilibrium}
+Given $L_{t-1}$ and exogenous period-$t$ fundamentals, a static equilibrium is a tuple
+\[
+  \left\{
+    w_{o,t}, r_{o,t}, P_{oj,t}, E_{oj,t}, L_{o,t}, \bar\tau_t, \bar\pi_t
+  \right\}_{o \in \R,\, j \in \Sct}
+\]
+such that:
+\begin{enumerate}[leftmargin=1.5em]
+\item household migration and final demand satisfy the equations in Section 2,
+\item firm cutoffs, price indices, and revenues satisfy the equations in Sections 3 and 4,
+\item expenditure balances satisfy $E_{oj,t} = E^{F}_{oj,t} + E^{M}_{oj,t}$,
+\item factor markets satisfy the wage and land-rent equations in Section 5,
+\item $\bar\pi_t$ and $\bar\tau_t$ satisfy the aggregate budget formulas in Section 6.
+\end{enumerate}
+
+The code treats the static equilibrium as a fixed point in
+\[
+  x_t = (w_t, r_t, P_t, E_t, \bar\tau_t, \bar\pi_t),
+\]
+with $L_t$ implied from $x_t$ and $L_{t-1}$.
+
+\section{Dynamic path}
+The full dynamic equilibrium is computed sequentially because the only endogenous
+state variable is lagged population:
+\begin{equation}
+  L_{t-1} \longrightarrow \text{solve static equilibrium at } t \longrightarrow L_t.
+\end{equation}
+For $t=1$, the state is the initial population vector $L_0$. For $t \ge 2$, the
+state is the solved population vector from period $t-1$.
+
+\section{Numerical solution}
+The solver uses a damped fixed-point iteration:
+\begin{enumerate}[leftmargin=1.5em]
+\item start from a positive guess for $(w,r,P,E,\bar\tau,\bar\pi)$,
+\item compute the implied mapping $F(x_t)$ from the equilibrium equations,
+\item update each component with geometric damping in logs,
+\item stop when the maximum absolute log residual falls below tolerance.
+\end{enumerate}
+
+For example, wages are updated by
+\begin{equation}
+  w^{new} = \exp\left[(1-\lambda)\log w^{old} + \lambda \log w^{imp}\right],
+\end{equation}
+and analogously for $r$, $P$, $E$, $\bar\tau$, and $\bar\pi$.
+Later periods are warm-started from the previous period's solution.
+
+\section{Implementation restrictions}
+The code enforces several restrictions that are useful to keep in mind when extending
+the model:
+\begin{itemize}[leftmargin=1.5em]
+\item $L_0$ is normalized to sum to one.
+\item $\gamma_{oj,t} + \sum_k \gamma^{IO}_{ojk,t} = 1$ for every $(o,j,t)$.
+\item $\breve\gamma_{oj,t} + \sum_k \breve\gamma^{IO}_{ojk,t} = 1$ for every $(o,j,t)$.
+\item $\breve\gamma_{oj,t}\breve\beta_{oj,t} = \gamma_{oj,t}\beta_{oj,t}$, so the
+      land share inside value added is preserved across agricultural technologies.
+\item Outside the heavy-manufacturing input, the mechanized agricultural input shares
+      are restricted to equal the baseline input shares.
+\item Subsidy rates satisfy $0 \le s_{oj,t} < 1$.
+\end{itemize}
+
+\section{Interpretation}
+The model combines five ingredients:
+\begin{enumerate}[leftmargin=1.5em]
+\item non-homothetic demand and endogenous migration,
+\item Melitz-style firm heterogeneity with bounded Pareto draws,
+\item input-output linkages across sectors,
+\item sector-specific agglomeration from lagged population,
+\item policy wedges acting through productivity, fixed costs, subsidies, trade costs,
+      migration costs, and foreign demand.
+\end{enumerate}
+
+That is the economic system solved by the repository. Any empirical exercise or policy
+counterfactual run through the package is a perturbation of this equilibrium system.
+
+\end{document}

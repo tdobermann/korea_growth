@@ -1,4 +1,4 @@
-"""Productivity distribution primitives.
+r"""Productivity distribution primitives.
 
 The model assumes a bounded Pareto distribution on the exogenous component
 phi \in [1, kappa] with shape theta.
@@ -49,7 +49,7 @@ def integral_phi_sigma_minus_1(
     theta: float,
     kappa: float,
 ) -> np.ndarray:
-    """Compute \int_a^b phi^{sigma-1} g(phi) dphi for the bounded Pareto.
+    r"""Compute \int_a^b phi^{sigma-1} g(phi) dphi for the bounded Pareto.
 
     Parameters
     ----------
