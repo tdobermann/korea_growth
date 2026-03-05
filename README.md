@@ -1,53 +1,191 @@
 # Deciphering the Miracle on the Han
 
-This repo is a **solver-ready** and **modular** implementation of the Korea spatial GE model.
+This repository contains a modular quantitative spatial general equilibrium model for
+studying Korea's industrialization, internal migration, and rural spillovers during the
+Heavy and Chemical Industrialization period.
 
-It is a refactor of the original `baseline.py` into a package that is suitable for a Git workflow:
+The codebase is organized as a reusable Python package rather than a single prototype
+script. The implemented model combines:
 
-- Clear module boundaries (`preferences`, `production`, `trade`, `equilibrium`, `solver`)
-- Dataclasses for model inputs and results
-- A robust (damped) fixed-point solver for the per-period static equilibrium
-- A sequential solver for the dynamic path when the only state is lagged population
+- non-homothetic household demand
+- endogenous migration across regions
+- sector-specific agglomeration from lagged population
+- Melitz-style firm heterogeneity with bounded Pareto productivity draws
+- input-output linkages across sectors
+- policy wedges through productivity, fixed costs, subsidies, trade costs, migration costs,
+  and foreign demand
 
-## Quick start
+## What Changed
+
+Relative to the earlier toy policy exercise, the repository now includes:
+
+- a 3-sector structure: `Agri`, `HeavyMnf`, `Services`
+- a 5-region policy simulation: `Seoul`, `Busan`, `Changwon`, `Daegu`, `Rural`
+- a 6-period HCI timeline mapped to `1965`, `1968`, `1973`, `1975`, `1980`, `1985`
+- a revised HCI policy package calibrated directionally to the empirical draft in
+  `docs/paper_draft05032026.pdf`
+- a formal model primer in [docs/model.tex](/c:/korea_growth/docs/model.tex)
+- improved test coverage for policy-direction checks and numerical edge cases
+
+## Repository Layout
+
+- [src/korea_growth/types.py](/c:/korea_growth/src/korea_growth/types.py): core dataclasses
+  for dimensions, parameters, exogenous paths, and equilibrium outputs
+- [src/korea_growth/preferences.py](/c:/korea_growth/src/korea_growth/preferences.py):
+  household utility, expenditure shares, and migration
+- [src/korea_growth/production.py](/c:/korea_growth/src/korea_growth/production.py):
+  agglomeration and unit-cost bundles
+- [src/korea_growth/distributions.py](/c:/korea_growth/src/korea_growth/distributions.py):
+  bounded Pareto distribution primitives
+- [src/korea_growth/trade.py](/c:/korea_growth/src/korea_growth/trade.py): firm cutoffs,
+  price indices, and revenue blocks
+- [src/korea_growth/equilibrium.py](/c:/korea_growth/src/korea_growth/equilibrium.py):
+  static equilibrium mapping
+- [src/korea_growth/solver.py](/c:/korea_growth/src/korea_growth/solver.py): damped
+  fixed-point solver for static and dynamic equilibrium
+- [src/korea_growth/checks.py](/c:/korea_growth/src/korea_growth/checks.py): input
+  validation and parameter restrictions
+- [scripts/solve_toy.py](/c:/korea_growth/scripts/solve_toy.py): minimal smoke-test model
+- [scripts/simulate_policy_shock.py](/c:/korea_growth/scripts/simulate_policy_shock.py):
+  baseline and HCI policy simulation
+- [docs/model.tex](/c:/korea_growth/docs/model.tex): formal background write-up of the
+  implemented model
+
+## Quick Start
 
 ```bash
 pip install -e .
 python scripts/solve_toy.py
 python scripts/simulate_policy_shock.py
+pytest -q
 ```
 
-The toy example creates a small (N=3 regions, J=2 sectors, T=2 periods) economy and runs the dynamic equilibrium solver.
+The scripts also insert `src/` into `sys.path`, so they run directly from a checkout.
 
-The policy simulation script creates a (N=3 regions, J=2 sectors, T=5 periods) economy, applies a large **Busan-only, agriculture-only** industrial policy at `t=4`, and writes comparison plots to:
+## Toy Example
 
-- `outputs/target_policy_mechanisms.png`
+[scripts/solve_toy.py](/c:/korea_growth/scripts/solve_toy.py) builds a small synthetic economy:
+
+- `N = 3` regions
+- `J = 2` sectors
+- `T = 2` periods
+
+It solves the dynamic equilibrium path and prints wages, population shares, taxes,
+profit rebates, and solver residuals.
+
+## Main Policy Simulation
+
+[scripts/simulate_policy_shock.py](/c:/korea_growth/scripts/simulate_policy_shock.py)
+builds a richer economy:
+
+- `N = 5` regions
+- `J = 3` sectors
+- `T = 6` periods
+
+The baseline is then compared to an HCI policy package with four channels:
+
+1. industrial-park support concentrated in `Changwon` and `Busan`
+2. corridor-focused road improvements along the Seoul-Busan-Changwon axis
+3. agricultural modernization strongest in middle-to-remote regions
+4. rural service growth through lower service entry costs and higher local demand
+
+The script prints a directional calibration summary and writes:
+
+- `outputs/structural_transformation.png`
+- `outputs/changwon_ip_mechanisms.png`
 - `outputs/regional_policy_effects.png`
-- `outputs/exports_and_sectoral_shares.png`
+- `outputs/rural_spillovers.png`
 
-The policy channels from `t>=4` are:
+## Current Calibration Intent
 
-- Agri subsidy in Busan: `s` rises to `0.35`
-- Agri productivity in Busan: `A` is multiplied by `1.20`
-- Agri fixed cost in Busan: `F` is multiplied by `0.55`
-- Agri outbound trade costs from Busan: `tau` to non-Busan destinations falls from `1.20` to `1.05`
+The HCI scenario is designed to move in the same direction as the empirical draft:
 
-## Where to plug in your data
+- lower aggregate agriculture share by 1985
+- higher heavy-manufacturing share by 1985
+- large wage and manufacturing gains in `Changwon`
+- lower `Seoul` population share
+- modest rural population retention and higher rural income
+- positive service-sector gains in `Daegu` and `Rural`
 
-Create a `korea_growth.types.ModelInputs` object with:
+This calibration is directional rather than a full structural estimation. The model is
+best understood as a solver-ready quantitative framework that can be re-calibrated,
+extended, or matched to richer data.
 
-- **Dimensions**: times, region names, sector names
-- **Parameters**: (sigma, theta, kappa, xi, rho_j, iota, eta, nu, alpha_j, v_j)
-- **Exogenous/policy paths**: arrays for productivity, fixed costs, subsidies, trade/migration costs, amenities, etc.
+## Results Snapshot
 
-Then call:
+With the current `scripts/simulate_policy_shock.py` calibration, the 1985 policy-minus-baseline
+comparison is:
+
+- aggregate agriculture share: `-0.0391`
+- aggregate heavy-manufacturing share: `+0.1269`
+- aggregate services share: `-0.0878`
+- Changwon wage: `+0.1002`
+- Changwon manufacturing share: `+0.3081`
+- Seoul population share: `-0.0370`
+- Rural population share: `+0.0155`
+- Rural income per capita: `+0.1229`
+- Rural services share: `+0.0856`
+- Daegu services share: `+0.0616`
+
+These are directional diagnostics from the current calibration, not final estimated moments.
+
+## Theory Primer
+
+The recommended entry point for the economics is
+[docs/model.tex](/c:/korea_growth/docs/model.tex). It formalizes:
+
+- household income, utility, and migration
+- firm entry, exporting, and agricultural adoption cutoffs
+- price indices, revenues, expenditures, and factor prices
+- government budget balance and aggregate profit rebate
+- the static equilibrium system solved each period
+- the sequential dynamic solution over lagged population
+
+## Using Your Own Data
+
+Create a `korea_growth.types.ModelInputs` object containing:
+
+- dimensions: time labels, region names, sector names
+- parameters: `sigma`, `theta`, `kappa`, `xi`, `rho_j`, `iota`, `eta`, `nu`,
+  `alpha_j`, `v_j`
+- exogenous paths: `A`, `F`, `Fbreve`, `Ftilde`, `s`, `tau`, `tautilde`,
+  `delta`, `Vbar`, `H`, `Dtilde`, `ptilde`, `M`, and the technology-share arrays
+
+Then solve:
 
 ```python
 from korea_growth.solver import solve_dynamic_equilibrium
-path = solve_dynamic_equilibrium(inputs)
+
+path = solve_dynamic_equilibrium(inputs=inputs)
+```
+
+For a single period, use `solve_static_equilibrium`.
+
+## Testing
+
+The current tests cover:
+
+- convergence of the toy model
+- directional policy effects in the HCI simulation
+- robustness of the production block when input-output matrices contain zero shares
+
+Run:
+
+```bash
+pytest -q
 ```
 
 ## Notes
 
-- The solver is written to be numerically robust, but you may need to tune damping and initial guesses for large-scale calibrations.
-- For scale: the implementation avoids O(N^3) patterns in the original code by vectorizing the costly trade blocks; the remaining dominant complexity is O(J N^2) per fixed-point iteration.
+- The solver uses damped geometric updates in log space for numerical stability.
+- The dynamic path is sequential because lagged population is the only endogenous state.
+- Input validation enforces the share restrictions required by the implemented model.
+- The dominant computational cost remains the sector-region trade block, which scales
+  roughly with `O(J N^2)` per fixed-point iteration.
+
+## Natural Next Extensions
+
+- tighter calibration to the national sectoral shares in the paper
+- richer migration heterogeneity by age or farm status
+- more granular regional geography
+- direct moment matching to the empirical tables rather than directional calibration
