@@ -200,7 +200,11 @@ def compute_sector_state(
 
     if is_agri:
         I_breve = integral_phi_sigma_minus_1(phi_breve, kappa, sigma=sigma, theta=theta, kappa=kappa)
-        Zbreve = A_o * f_o * np.power(I_breve, 1.0 / (sigma - 1.0))
+        # Adopters produce with effective productivity xi*phi in ALL markets (this is the
+        # premise of the adoption benefit term B). The xi factor must therefore appear in
+        # the domestic mechanized aggregate exactly as it does in the export aggregate
+        # Ztilde below. (model_review.md 2.1; model.tex eq. Zbreve.)
+        Zbreve = A_o * f_o * xi * np.power(I_breve, 1.0 / (sigma - 1.0))
     else:
         Zbreve = None
 

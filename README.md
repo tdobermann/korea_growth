@@ -116,18 +116,23 @@ extended, or matched to richer data.
 With the current `scripts/simulate_policy_shock.py` calibration, the 1985 policy-minus-baseline
 comparison is:
 
-- aggregate agriculture share: `-0.0391`
-- aggregate heavy-manufacturing share: `+0.1269`
-- aggregate services share: `-0.0878`
-- Changwon wage: `+0.1002`
-- Changwon manufacturing share: `+0.3081`
-- Seoul population share: `-0.0370`
-- Rural population share: `+0.0155`
-- Rural income per capita: `+0.1229`
-- Rural services share: `+0.0856`
-- Daegu services share: `+0.0616`
+- aggregate agriculture share: `-0.0413`
+- aggregate heavy-manufacturing share: `+0.0570`
+- aggregate services share: `-0.0157`
+- Changwon wage: `+0.1436`
+- Changwon manufacturing share: `+0.2293`
+- Seoul population share: `-0.0258`
+- Rural population share: `+0.0328`
+- Rural income per capita: `+0.1986`
+- Rural services share: `+0.1064`
+- Daegu services share: `+0.1057`
 
 These are directional diagnostics from the current calibration, not final estimated moments.
+They reflect the corrected accounting described in [docs/model.tex](docs/model.tex) (land
+rents rebated to residents, consistent subsidy accounting, fixed costs paid in labor,
+infrastructure buying goods, and a net-foreign-transfer trade closure); the aggregate
+heavy-manufacturing effect is now smaller than the earlier `+0.1269`, consistent with the
+review's point that the previous number over-attributed the structural shift to policy.
 
 ## Theory Primer
 

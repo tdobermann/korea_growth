@@ -35,6 +35,12 @@ def _geom_update_scalar(old: float, new: float, lam: float, eps: float) -> float
     return float(np.exp((1.0 - lam) * np.log(max(old, eps)) + lam * np.log(max(new, eps))))
 
 
+def _arith_update_scalar(old: float, new: float, lam: float) -> float:
+    """Arithmetic (level) damping. Used for taubar/pibar, which can be negative and so
+    must not be updated in log space (model_review.md 2.4)."""
+    return float((1.0 - lam) * old + lam * new)
+
+
 def initial_guess(
     *,
     inputs: ModelInputs,
@@ -192,8 +198,8 @@ def solve_static_equilibrium(
         r = _geom_update(r, implied.r, lam=lam, eps=eps)
         P = _geom_update(P, implied.P, lam=lam, eps=eps)
         E = _geom_update(E, implied.E, lam=lam, eps=eps)
-        taubar = _geom_update_scalar(taubar, implied.taubar, lam=lam, eps=eps)
-        pibar = _geom_update_scalar(pibar, implied.pibar, lam=lam, eps=eps)
+        taubar = _arith_update_scalar(taubar, implied.taubar, lam=lam)
+        pibar = _arith_update_scalar(pibar, implied.pibar, lam=lam)
 
         last_max = max_res
 

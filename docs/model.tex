@@ -141,9 +141,10 @@ v_{\mathrm{Agri}}(y^{pc}/\mathcal{P})^{-\eta}$ declines in real income), togethe
 income bounds guaranteeing $0\le \alpha_j + v_j (y^{pc}/\mathcal{P})^{-\eta}\le 1$ for
 every $j$. These restrictions should be checked at the solved equilibrium, not merely
 imposed on primitives.
-% [REVIEW FLAG \S7.3] The current code permits eta of either sign and does not verify the
-% share-bound conditions at the solution. Enforcing eta>0, v_Agri>0, and the share bounds
-% is a checks.py addition, deferred to the code pass.
+% [REVIEW FLAG \S7.3] Previously the code permitted eta of either sign and did not verify
+% the share-bound conditions at the solution. Enforcing eta>0, v_Agri>0, and the share
+% bounds is a checks.py addition (IMPLEMENTED: eta>0 and v_Agri>0 in validate_param_restrictions;
+% income-dependent share bounds remain a solved-equilibrium diagnostic).
 
 \subsection{Migration}\label{sec:migration}
 \paragraph{Shock structure (review \S2.3, \S7.2).} The previous draft wrote migration
@@ -346,7 +347,8 @@ producers domestically. Two coherent resolutions:
 We adopt (1) as the near-term fix and record the ordering as an equilibrium restriction in
 \S\ref{sec:restrictions}; (2) is a Phase-2 modeling upgrade.
 % [REVIEW FLAG \S2.2] Resolution (1) presumes the ordering holds at the calibrated
-% parameters. This must be checked in checks.py (code pass) and may fail for some
+% parameters. IMPLEMENTED as a post-solution diagnostic (checks.cutoff_ordering_violation);
+% it may fail for some
 % policy configurations, in which case (2) is required. Flagged.
 
 \subsection{Productivity aggregates}
@@ -373,7 +375,7 @@ revenue by a factor $\xi^{\sigma-1}$. Because agricultural mechanization is the 
 headline rural channel, this directly attenuates the mechanism the model exists to
 quantify; the fix is to include $\xi$ in $\breve Z_{oj,t}$ exactly as in $\tilde Z_{oj,t}$.
 % [REVIEW FLAG \S2.1] This is a THEORY correction; the corresponding one-line code fix
-% (multiply Zbreve by xi in trade.py:203) is deferred to the code pass and WILL change all
+% (multiply Zbreve by xi in trade.py) is IMPLEMENTED and changes all
 % numerical outputs and may break directional tests. See discrepancies section.
 
 \section{Sectoral price indices and revenues}
@@ -469,7 +471,7 @@ therefore write the resource-payment split by technology as
 with $TFC_{oj,t}=TFC^{trad}_{oj,t}+TFC^{new}_{oj,t}$.
 % [REVIEW FLAG \S1.3] Grossing up by 1/(1-s) changes every factor-market and government
 % residual in the code (equilibrium.py:135,206). This is a THEORY correction; the code
-% edit and a Walras unit test are deferred to the code pass.
+% edit and a Walras unit test are IMPLEMENTED (equilibrium.py; tests/test_accounting.py).
 
 \subsection{Expenditure system}
 Local intermediate demand is the material-input share of the \emph{true factor cost}
@@ -561,7 +563,7 @@ flooring $\bar\pi_t$ at a small positive number and reporting a floored point as
 (review \S2.4).
 % [REVIEW FLAG \S2.4] solver.py/equilibrium.py currently floor pibar (and taubar) at
 % eps=1e-14 in log space, which silently projects negative-profit states to ~0. Fixing the
-% update to levels is a code-pass item.
+% update to levels is IMPLEMENTED (_arith_update_scalar in solver.py).
 
 Government spending is financed by the labor-income tax $\bar\tau_t$. Using the correct
 subsidy outlay \eqref{eq:TFC} and letting infrastructure \emph{purchase goods},
@@ -590,7 +592,7 @@ building it, rather than a free trade-cost reduction plus an unrelated lump-sum 
 % [REVIEW FLAG \S1.4] The sectoral allocation of G^infra (which goods roads/buildings buy)
 % is a modeling choice; a natural default is heavy-manufacturing + services in fixed
 % shares, or a dedicated construction sector. Confirm the intended mapping. The current
-% code has no E^G at all (infra is a pure tax), so this needs a code change.
+% code now routes G^infra into E^G (IMPLEMENTED in equilibrium.py).
 
 \section{Trade balance, adding-up, and welfare}\label{sec:walras}
 \subsection{Trade balance (review \S1.5)}
@@ -612,10 +614,10 @@ i.e.\ balanced trade):
 \end{equation}
 A nonzero $\mathrm{NX}^{\star}_t$ (a trade deficit financed from abroad) must be added to
 aggregate household income for the accounts to close.
-% [REVIEW FLAG \S1.5] The current code imposes no trade-balance condition and no numeraire
-% statement; exports are driven by the exogenous shifter Dtilde and imports by CES demand,
-% with nothing linking them. Enforcing (tradebalance) --- or explicitly carrying a deficit
-% into income --- is a code-pass decision. Balanced trade is the cleanest default; confirm.
+% [REVIEW FLAG \S1.5] IMPLEMENTED as "carry the net position into income": the code adds
+% T = IM - EX to household income (distributed proportional to income; equilibrium.py), so
+% the accounts close with NX* = EX - IM an endogenous residual. Exactly pinning NX* = 0
+% would need an added equilibrating instrument and is left for later. See sec:discrepancies.
 
 \subsection{Aggregate resource constraint and Walras's law}
 With the corrections above --- land rents paid to residents \eqref{eq:ypc}, fixed costs
@@ -645,7 +647,7 @@ This adding-up should be \emph{proven} for the stated ownership structure and
 checks the accounting will look for it (review \S1, closing note).
 % [REVIEW FLAG \S1] Eq. (walras) is the target identity, stated at the level of a primer.
 % A rigorous proposition (income = expenditure, with the exact iceberg bookkeeping) belongs
-% in the paper (Phase 6). The Walras unit test is a code-pass deliverable.
+% in the paper (Phase 6). The Walras unit test is IMPLEMENTED (tests/test_accounting.py).
 
 \subsection{Welfare (review \S3.9)}\label{sec:welfare}
 The Gumbel shock structure of \S\ref{sec:migration} delivers a welfare metric, which the
@@ -788,33 +790,55 @@ innocuous by robustness.
 % [REVIEW FLAG \S3.5] Re-specifying agriculture as competitive is a structural change, not a
 % theory edit; flagged for the later phase.
 
-\section{Discrepancies between this note and the current code}\label{sec:discrepancies}
-This revision corrects the \emph{theory}. Until the accompanying code pass lands, several
-equations here intentionally diverge from \texttt{src/korea\_growth/} (section numbers below
-refer to \texttt{docs/model\_review.md}). The outstanding code changes are:
+\section{Relation to the code}\label{sec:discrepancies}
+The theory corrections in this note are now \emph{implemented} in \texttt{src/korea\_growth/}
+(section numbers below refer to \texttt{docs/model\_review.md}). The theory-consistent
+minimum --- items 1--8 --- has landed:
 \begin{enumerate}[leftmargin=1.5em]
-\item \textbf{$\xi$ in the domestic mechanized aggregate} \eqref{eq:Zbreve}:
-      \texttt{trade.py} (the \texttt{Zbreve} line) omits $\xi$; multiply it in. (review \S2.1)
-\item \textbf{Subsidy grossing-up}: replace the private cost $\frac{\sigma-1}{\sigma}R$ by
-      $TFC=\frac{\sigma-1}{\sigma(1-s)}R$ in factor demands and intermediate demand, and
-      use $\sum s\,TFC$ for the subsidy outlay in \texttt{equilibrium.py}. (review \S1.3)
-\item \textbf{Land rents to households}: add $r_{d}H_{d}/L_{d}$ to disposable income in
-      \texttt{preferences.py}/\texttt{equilibrium.py}. (review \S1.1)
-\item \textbf{Fixed costs as labor income}: add $\Phi^{F}_{o}$ to labor demand. (review \S1.2)
-\item \textbf{Infrastructure buys goods}: add $E^{G}$ and route $G^{infra}$ into
-      goods-market clearing. (review \S1.4)
-\item \textbf{Migration real-income index}: use the positive $\mathcal{Y}_{d}$ of
-      \eqref{eq:realincome} in place of the sign-ambiguous $V_d$ in
-      \texttt{preferences.py}. (review \S2.3)
-\item \textbf{Sign-unrestricted $\bar\pi$}: update in levels, not logs. (review \S2.4)
-\item \textbf{New checks}: cutoff ordering, PIGL share bounds, and a Walras's-law assertion
-      at the solved equilibrium (\texttt{checks.py} / tests). (review \S1, \S2.2, \S7.3)
+\item \textbf{$\xi$ in the domestic mechanized aggregate} \eqref{eq:Zbreve}: added to
+      \texttt{trade.py} (\texttt{Zbreve}). (review \S2.1)
+\item \textbf{Subsidy grossing-up}: factor demand, intermediate demand, and the subsidy
+      outlay now use the true factor cost $TFC=\frac{\sigma-1}{\sigma(1-s)}R$ in
+      \texttt{equilibrium.py}. (review \S1.3)
+\item \textbf{Land rents to households}: $r_{d}H_{d}/L_{d}$ is added to disposable income,
+      via a small inner fixed point for $L$ in \texttt{equilibrium.py}. (review \S1.1)
+\item \textbf{Fixed costs as labor income}: the bill $\Phi^{F}_{o}$ is added to labor
+      demand. (review \S1.2)
+\item \textbf{Infrastructure buys goods}: $E^{G}$ (default: heavy-manufacturing $+$
+      services, split by population) enters goods-market clearing. (review \S1.4)
+\item \textbf{Migration real-income index}: the positive $\mathcal{Y}_{d}$ of
+      \eqref{eq:realincome} replaces the sign-ambiguous $V_d$ in \texttt{preferences.py}.
+      (review \S2.3)
+\item \textbf{Sign-unrestricted $\bar\pi$}: $\bar\tau,\bar\pi$ are updated in levels, not
+      logs (\texttt{solver.py}); their residuals are arithmetic. (review \S2.4)
+\item \textbf{Checks and tests}: PIGL restrictions ($\eta>0$, $v_{\mathrm{Agri}}>0$) in
+      \texttt{checks.py}; a Walras / resource-constraint / government-budget assertion and
+      a cutoff-ordering diagnostic in \texttt{tests/test\_accounting.py}. (review \S1,
+      \S2.2, \S7.3)
 \end{enumerate}
-Items 1--8 are the ``theory-consistent'' minimum. Structural upgrades flagged above ---
-capital and credit wedges (review \S3.1), annual/forward-looking migration (review \S3.2),
-competitive agriculture (review \S3.5), sector-specific $\sigma_j$ and non-traded services
-(review \S3.6), separate inbound/outbound port frictions (review \S3.7), county-level
-geography and estimation (review \S4) --- are deliberately \emph{not} attempted in this pass.
+
+\paragraph{Two implementation choices worth recording.}
+\begin{itemize}[leftmargin=1.5em]
+\item \emph{Trade closure.} Once the other leaks are closed, the household budget and the
+      CES resource identity \emph{together} force balanced trade, so the net foreign
+      position $T=\mathrm{IM}-\mathrm{EX}$ is carried into household income. It is
+      distributed \emph{proportional to income} (a uniform income scale factor) rather
+      than lump-sum, which keeps per-capita income strictly positive during the solve.
+      This makes $\mathrm{NX}^{\star}$ an endogenous residual equal to $\mathrm{EX}-\mathrm{IM}$;
+      pinning $\mathrm{NX}^{\star}=0$ exactly would require an added equilibrating
+      instrument and is left for later (review \S1.5).
+\item \emph{Cutoff ordering.} The ordering $\bar\phi\le\breve\phi\le\tilde\phi$ is provided
+      as a post-solution \emph{diagnostic} (\texttt{checks.cutoff\_ordering\_violation}),
+      not a hard constraint, because the current toy calibration violates it --- exactly
+      the configuration-dependent failure the review anticipated (review \S2.2). Enforcing
+      it requires either the parameter restrictions or the joint discrete choice.
+\end{itemize}
+
+Structural upgrades flagged above --- capital and credit wedges (review \S3.1),
+annual/forward-looking migration (review \S3.2), competitive agriculture (review \S3.5),
+sector-specific $\sigma_j$ and non-traded services (review \S3.6), separate
+inbound/outbound port frictions (review \S3.7), county-level geography and estimation
+(review \S4) --- are deliberately \emph{not} attempted in this pass.
 
 \section{Interpretation}
 The model combines five ingredients:

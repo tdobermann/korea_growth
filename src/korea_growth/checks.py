@@ -98,6 +98,16 @@ def validate_param_restrictions(inputs: ModelInputs, tol: float = 1e-10) -> None
     if not np.isclose(p.v_j.sum(), 0.0, atol=tol):
         errors.append("v_j must sum to 0")
 
+    # PIGL regularity / sign conventions (model_review.md 7.3, model.tex): eta > 0 and a
+    # positive agriculture taste shifter deliver Engel's law and keep the expenditure shares
+    # well-behaved. (The share bounds themselves are income-dependent and are checked at the
+    # solved equilibrium, not here.)
+    if not (p.eta > 0):
+        errors.append("eta must be > 0 (PIGL regularity)")
+    agri_idx = dims.agri_idx
+    if agri_idx is not None and not (p.v_j[agri_idx] > 0):
+        errors.append("v_j for agriculture must be > 0 (Engel's law)")
+
     if not (np.min(ex.beta) > 0 and np.max(ex.beta) < 1):
         errors.append("beta must be in (0,1)")
 
@@ -138,3 +148,67 @@ def validate_inputs(inputs: ModelInputs) -> None:
     """Run all validation checks."""
     validate_shapes(inputs)
     validate_param_restrictions(inputs)
+
+
+def aggregate_accounting(inputs: ModelInputs, t: int, L_prev: np.ndarray, eq) -> dict:
+    """Return the aggregate accounting diagnostics at a solved equilibrium.
+
+    Re-evaluates the equilibrium map at ``eq`` (which is a fixed point, so the implied
+    values equal ``eq``) and returns the ``aggregates`` dictionary, which contains the
+    resource-constraint residual, income-vs-expenditure residual, government-budget
+    residual, exports, imports, and the net foreign transfer (model_review.md 1).
+    """
+    from .equilibrium import compute_implied_static
+
+    implied = compute_implied_static(
+        inputs=inputs,
+        t=t,
+        L_prev=L_prev,
+        w=eq.w,
+        r=eq.r,
+        P=eq.P,
+        E=eq.E,
+        taubar=eq.taubar,
+        pibar=eq.pibar,
+    )
+    return implied.aggregates
+
+
+def cutoff_ordering_violation(inputs: ModelInputs, t: int, L_prev: np.ndarray, eq) -> float:
+    """Max violation of the agricultural cutoff ordering phibar <= phibreve <= phitilde.
+
+    Returns 0.0 when the ordering holds (or when there is no agriculture sector). Only
+    finite cutoffs are compared (phibreve is +inf where mechanized adoption is never
+    profitable). See model_review.md 2.2 and model.tex.
+    """
+    from .trade import compute_sector_state
+
+    agri_idx = inputs.dims.agri_idx
+    if agri_idx is None:
+        return 0.0
+
+    st = compute_sector_state(
+        t=t,
+        j=agri_idx,
+        dims=inputs.dims,
+        params=inputs.params,
+        exog=inputs.exog,
+        L_prev=L_prev,
+        w=eq.w,
+        r=eq.r,
+        P=eq.P,
+        E=eq.E,
+    )
+
+    phi_bar = np.asarray(st.phi_bar, dtype=float)
+    phi_breve = np.asarray(st.phi_breve, dtype=float)
+    phi_tilde = np.asarray(st.phi_tilde, dtype=float)
+
+    finite = np.isfinite(phi_breve)
+    v1 = phi_bar[finite] - phi_breve[finite]  # want <= 0
+    v2 = phi_breve[finite] - phi_tilde[finite]  # want <= 0
+    worst = 0.0
+    for arr in (v1, v2):
+        if arr.size:
+            worst = max(worst, float(np.max(arr)))
+    return max(0.0, worst)
