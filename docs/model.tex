@@ -7,12 +7,14 @@
 \usepackage{hyperref}
 
 \title{A Primer on the Implemented Korea Spatial GE Model}
+% [REVIEW FLAG \S7.1] A submission needs a real author/title. Left as a primer for now.
 \author{}
 \date{\today}
 
-\newcommand{\R}{\mathcal{N}}
+% Region set. The macro was renamed away from a name that reads as the reals;
+% the set of regions renders as \mathcal{N}. The unused \E macro was removed (review 7.1).
+\newcommand{\Nreg}{\mathcal{N}}
 \newcommand{\Sct}{\mathcal{J}}
-\newcommand{\E}{\mathbb{E}}
 
 \begin{document}
 \maketitle
@@ -28,8 +30,8 @@ state is lagged population, so period $t$ equilibrium takes $L_{t-1}$ as given a
 returns $(w_t,r_t,P_t,E_t,L_t,\bar\tau_t,\bar\pi_t)$.
 
 \section{Environment}
-Time is discrete, $t = 1,\dots,T$. Regions are indexed by $o,d \in \R$ and sectors by
-$j,k \in \Sct$. Let $N = |\R|$ and $J = |\Sct|$.
+Time is discrete, $t = 1,\dots,T$. Regions are indexed by $o,d \in \Nreg$ and sectors by
+$j,k \in \Sct$. Let $N = |\Nreg|$ and $J = |\Sct|$.
 
 The exogenous inputs in period $t$ are:
 \begin{itemize}[leftmargin=1.5em]
@@ -59,14 +61,59 @@ The structural parameters are:
 together with expenditure parameters $\alpha_j$ and $v_j$ satisfying
 $\sum_j \alpha_j = 1$ and $\sum_j v_j = 0$.
 
+\paragraph{Timing within a period (review \S7.5).} The within-period sequence is: (i)
+lagged population $L_{t-1}$ determines agglomeration $f_{oj,t}=L_{o,t-1}^{\rho_j}$ and
+congestion $g_{d,t}=L_{d,t-1}^{\iota}$; (ii) agents observe current-period
+$(w_t,P_t,r_t,\bar\tau_t,\bar\pi_t)$ and migrate, so migration is \emph{myopic} on
+current-period fundamentals; (iii) production, goods-market clearing, and consumption
+occur in the destination, with the labor market clearing at the current-period population
+$L_t$ (congestion is dated $t-1$, the active labor force is dated $t$). This myopia is a
+modeling choice; forward-looking migration is a Phase-2 upgrade (review \S3.2).
+% [REVIEW FLAG \S3.2] Myopic migration on unevenly spaced periods (1965,68,73,75,80,85)
+% gives per-period elasticities no consistent annual interpretation. Annualization plus a
+% forward-looking robustness check is a structural (non-theory-edit) item, flagged for the
+% later phase, not fixed here.
+
 \section{Households}
-\subsection{Disposable income and indirect utility}
-Per-capita disposable income in region $d$ is
+\subsection{Ownership, numeraire, and disposable income}
+\paragraph{Numeraire (review \S1.5).} The economy is a small open economy that faces an
+exogenous foreign price vector $\tilde p_{j,t}$. We fix the numeraire by normalizing the
+foreign price of the heavy-manufacturing good, $\tilde p_{\mathrm{HeavyMnf},t}\equiv 1$;
+all wages, rents, and price indices are expressed in these units. Because $L_{0}$ is
+normalized to sum to one, all ``populations'' $L_{o,t}$ are population \emph{shares} and
+wages $w_{o,t}$ are per-share; a bridge to won-denominated data therefore requires an
+explicit scale factor (review \S7.10).
+% [REVIEW FLAG \S1.5] Choice of numeraire (foreign HeavyMnf price = 1) is a modeling
+% decision; an alternative is to fix aggregate nominal income W_t = 1. Confirm preference.
+
+\paragraph{Ownership structure (review \S1.1, \S3.4).} We state ownership explicitly so
+that income equals expenditure (\S\ref{sec:walras}):
+\begin{itemize}[leftmargin=1.5em]
+\item \emph{Labor} is supplied inelastically by residents; region-$d$ residents earn
+      $w_{d,t}L_{d,t}$.
+\item \emph{Land/structures} are owned locally: the land rent $r_{o,t}H_{o,t}$ generated
+      in region $o$ accrues to the residents of $o$ and is rebated per capita. (Robustness
+      to absentee/national ownership is a one-line change in the rebate rule.)
+\item \emph{Firm profits} are pooled nationally and rebated in proportion to wage income,
+      through the economy-wide rebate rate $\bar\pi_t$ defined in \S\ref{sec:gov}.
+\end{itemize}
+% [REVIEW FLAG \S1.1/\S3.4] Local land ownership and wage-proportional profit pooling are
+% both distributionally loaded assumptions. The paper's incidence question may want
+% local profit retention instead; flagged for a robustness pass.
+
+\paragraph{Disposable income.} Per-capita disposable income in region $d$ is
 \begin{equation}
-  y^{pc}_{d,t} = (1 - \bar\tau_t + \bar\pi_t) w_{d,t},
+  y^{pc}_{d,t}
+  = (1 - \bar\tau_t + \bar\pi_t)\, w_{d,t}
+  + \frac{r_{d,t} H_{d,t}}{L_{d,t}},
+  \label{eq:ypc}
 \end{equation}
-where $\bar\tau_t$ is the proportional tax needed to finance subsidies and infrastructure
-and $\bar\pi_t$ is aggregate profit income rebated in wage units.
+where $\bar\tau_t$ is the proportional labor-income tax that finances subsidies and
+infrastructure and $\bar\pi_t$ is the aggregate profit rebate in wage units. The land-rent
+term restores the land income that the previous specification computed
+(to clear the land market) but paid to no one; because rural land-value capitalization is
+the canonical welfare metric for market-access gains (Donaldson--Hornbeck 2016), omitting
+it discarded exactly the incidence the paper studies.
 
 Given sectoral price indices $P_{djt}$, define the composite price index
 \begin{equation}
@@ -82,27 +129,78 @@ The implemented indirect utility is
     - \sum_j v_j \log P_{djt}, & \eta = 0.
   \end{cases}
 \end{equation}
+This is the price-independent generalized-linear (PIGL) indirect utility of Boppart
+(2014), which should be cited and whose regularity conditions the model inherits.
 
-\subsection{Migration}
-Lagged population $L_{d,t-1}$ enters destination utility through congestion:
+\paragraph{Regularity and sign conventions (review \S7.3).} For the expenditure shares
+$\psi_{dj,t}$ of \S3.3 to lie in $[0,1]$ over the equilibrium income range, and for
+Engel's law (rising income shifting demand away from agriculture) to hold, the parameters
+must satisfy Boppart's conditions rather than merely $\eta\in\mathbb{R}$: we require
+$\eta>0$ and $v_{\mathrm{Agri}}>0$ (so the agricultural share $\alpha_{\mathrm{Agri}} +
+v_{\mathrm{Agri}}(y^{pc}/\mathcal{P})^{-\eta}$ declines in real income), together with
+income bounds guaranteeing $0\le \alpha_j + v_j (y^{pc}/\mathcal{P})^{-\eta}\le 1$ for
+every $j$. These restrictions should be checked at the solved equilibrium, not merely
+imposed on primitives.
+% [REVIEW FLAG \S7.3] The current code permits eta of either sign and does not verify the
+% share-bound conditions at the solution. Enforcing eta>0, v_Agri>0, and the share bounds
+% is a checks.py addition, deferred to the code pass.
+
+\subsection{Migration}\label{sec:migration}
+\paragraph{Shock structure (review \S2.3, \S7.2).} The previous draft wrote migration
+shares as $\mu_{od}\propto(\bar V_d L_{d,t-1}^{\iota} V_d/\delta_{od})^{\nu}$ and called
+this ``multinomial logit in levels.'' That is a mislabel --- it is a power (Fr\'echet-type)
+share --- and, more seriously, it is ill-posed: with the PIGL indirect utility $V_d$ of
+\S3.1 negative (which happens for $\eta<0$, or for $y^{pc}<\mathcal{P}$ in the log case),
+$V_d^{\nu}$ is not real and dividing by $\delta_{od}\ge 1$ \emph{raises} utility. We
+re-derive the block from an explicit shock structure so that it is well-defined for all
+parameter values and delivers a welfare formula (\S\ref{sec:welfare}).
+
+An agent $i$ resident in $o$ draws idiosyncratic taste shocks $\{\varepsilon_{id}\}_{d\in\Nreg}$,
+i.i.d.\ Gumbel with scale $1/\nu$, and chooses the destination maximizing the additively
+separable value
 \begin{equation}
-  g_{d,t} = L_{d,t-1}^{\iota}.
+  W_{od,t} + \tfrac{1}{\nu}\,\varepsilon_{id},
+  \qquad
+  W_{od,t}
+  = \underbrace{\log \bar V_{d,t}}_{\text{amenity}}
+  + \underbrace{\iota \log L_{d,t-1}}_{\text{congestion}}
+  + \underbrace{\log \mathcal{Y}_{d,t}}_{\text{real income}}
+  - \underbrace{\log \delta_{od,t}}_{\text{migration cost}} ,
+  \label{eq:Wod}
 \end{equation}
-The common component of utility from moving to $d$ is
+where $\mathcal{Y}_{d,t}>0$ is a money-metric real-income index for destination $d$ (the
+level of income, at a fixed reference price vector, that delivers the household's
+attained utility). Since PIGL utility is defined only up to affine transformations,
+migration elasticities must be built on this expenditure-function-based measure rather
+than on the cardinal level $V_d$; that is what removes the cardinalization dependence the
+referee flags. Operationally we use the log real-income index
 \begin{equation}
-  U^{com}_{d,t} = \bar V_{d,t} g_{d,t} V_{d,t}.
+  \log \mathcal{Y}_{d,t}
+  = \log\!\left(\frac{y^{pc}_{d,t}}{\mathcal{P}_{d,t}}\right)
+  - \sum_{j} v_j \log P_{djt},
+  \label{eq:realincome}
 \end{equation}
-An agent starting in origin $o$ values destination $d$ at
+which is the money-metric welfare of the PIGL system in the $\eta\to 0$ (log) case and a
+monotone transform of $V_{d,t}$ in general; it is finite and well-defined for all
+$y^{pc}_{d,t}>0$.
+% [REVIEW FLAG \S2.3] Eq. (realincome) is the exact money metric only in the log-preference
+% case. For general eta the exact PIGL expenditure function should replace it (appendix
+% derivation, inheriting Boppart 2014 regularity conditions). Flagged as a to-derive item.
+
+\paragraph{Choice probabilities and population dynamics.} With Gumbel shocks the
+destination probabilities are the standard logit
 \begin{equation}
-  U_{od,t} = \frac{U^{com}_{d,t}}{\delta_{od,t}}.
+  \mu_{od,t}
+  = \frac{\exp(\nu\, W_{od,t})}{\sum_{d'\in\Nreg}\exp(\nu\, W_{od',t})}
+  = \frac{\bigl(\bar V_{d,t}\, L_{d,t-1}^{\iota}\, \mathcal{Y}_{d,t}/\delta_{od,t}\bigr)^{\nu}}
+         {\sum_{d'\in\Nreg}\bigl(\bar V_{d',t}\, L_{d',t-1}^{\iota}\, \mathcal{Y}_{d',t}/\delta_{od',t}\bigr)^{\nu}},
+  \label{eq:mu}
 \end{equation}
-Migration shares are multinomial-logit in levels:
+which is manifestly in $[0,1]$ and well-defined because $\mathcal{Y}_{d,t}>0$. The second
+equality shows the earlier power form is recovered \emph{once the positive real-income
+index $\mathcal{Y}_{d,t}$ replaces the sign-ambiguous $V_{d,t}$}. Population evolves as
 \begin{equation}
-  \mu_{od,t} = \frac{U_{od,t}^{\nu}}{\sum_{d' \in \R} U_{od',t}^{\nu}}.
-\end{equation}
-Population evolves according to
-\begin{equation}
-  L_{d,t} = \sum_{o \in \R} \mu_{od,t} L_{o,t-1}.
+  L_{d,t} = \sum_{o \in \Nreg} \mu_{od,t}\, L_{o,t-1}.
 \end{equation}
 
 \subsection{Non-homothetic final demand}
@@ -158,11 +256,17 @@ The main integral used by the code is
 Given destination expenditures and prices, origin $o$ faces sector-$j$ demand shifter
 \begin{equation}
   S_{oj,t}
-  = \sum_{d \in \R} \tau_{odj,t}^{1-\sigma} P_{djt}^{\sigma-1} E_{dj,t}.
+  = \sum_{d \in \Nreg} \tau_{odj,t}^{1-\sigma} P_{djt}^{\sigma-1} E_{dj,t}.
 \end{equation}
+Here $E_{dj,t}$ is \emph{total} sector-$j$ expenditure in destination $d$ (final demand
+plus intermediate demand from roundabout production), not final demand alone; this is the
+correct object under input--output linkages (review \S7.7).
 
-\subsection{Entry, adoption, and export cutoffs}
-The zero-profit entry cutoff is implemented as
+\subsection{Entry, adoption, and export cutoffs}\label{sec:cutoffs}
+Each cutoff is the productivity at which the marginal firm's operating profit just covers
+the relevant fixed cost; the $\sigma^{1/(\sigma-1)}$ factor comes from substituting the
+CES markup pricing into that zero-cutoff-profit condition (this and every cutoff formula
+below should be derived, not asserted --- review \S6, \S7). The zero-profit entry cutoff is
 \begin{equation}
   \bar\phi_{oj,t}
   =
@@ -175,6 +279,11 @@ The zero-profit entry cutoff is implemented as
     \left( \frac{F_{oj,t}}{S_{oj,t}} \right)^{\frac{1}{\sigma-1}}
   \right\}.
 \end{equation}
+The $\max\{1,\cdot\}$ truncation binds when the unconstrained cutoff falls below the lower
+support point: economically, \emph{all} potential entrants are then active and the
+zero-cutoff-profit condition fails at an interior $\phi$ (the marginal drawable firm earns
+strictly positive profit). The map has a kink there; \S\ref{sec:existence} discusses the
+consequences (review \S7.8, \S2.4).
 
 For agriculture, the adoption cutoff uses the mechanization benefit term
 \begin{equation}
@@ -220,15 +329,52 @@ The export cutoff is
 where $\chi_{oj,t} = (\breve c_{oj,t}/c_{oj,t}) / \xi$ for agriculture and
 $\chi_{oj,t} = 1$ otherwise.
 
+\paragraph{Cutoff ordering (review \S2.2).} For agriculture the export term carries
+$\chi=(\breve c/c)/\xi$, i.e.\ the export cutoff is written as though every exporter
+already operates the mechanized technology, yet nothing in the current implementation
+enforces $\tilde\phi_{oj,t}\ge \breve\phi_{oj,t}$. With cheap exporting or expensive
+adoption the model can therefore manufacture ``mechanized exporters'' below the adoption
+cutoff --- firms that never paid $\breve F$ and are simultaneously counted as traditional
+producers domestically. Two coherent resolutions:
+\begin{enumerate}[leftmargin=1.5em]
+\item \emph{Restrict and verify.} State primitive conditions guaranteeing the ordering
+      $\bar\phi_{oj,t}\le\breve\phi_{oj,t}\le\tilde\phi_{oj,t}$ and enforce it as a check.
+\item \emph{Solve the joint discrete choice.} Model the adoption--export decision jointly
+      (exporting raises the return to adopting, a genuine complementarity) rather than
+      pricing the two margins as if independent.
+\end{enumerate}
+We adopt (1) as the near-term fix and record the ordering as an equilibrium restriction in
+\S\ref{sec:restrictions}; (2) is a Phase-2 modeling upgrade.
+% [REVIEW FLAG \S2.2] Resolution (1) presumes the ordering holds at the calibrated
+% parameters. This must be checked in checks.py (code pass) and may fail for some
+% policy configurations, in which case (2) is required. Flagged.
+
 \subsection{Productivity aggregates}
-Define
+An adopter with idiosyncratic draw $\phi$ produces with effective productivity
+$\xi\phi$ \emph{in every market}: that is precisely the premise of the adoption benefit
+term $B_{oj,t}$ (\S\ref{sec:cutoffs}), which selects the adoption cutoff on the assumption of the $\xi$
+gain. The mechanized productivity aggregates must therefore carry the same $\xi$
+domestically as they do in the export block. Define
 \begin{align}
-  Z_{oj,t} &= A_{oj,t} f_{oj,t} I(\bar\phi_{oj,t}, \bar b_{oj,t})^{\frac{1}{\sigma-1}}, \\
-  \breve Z_{oj,t} &= A_{oj,t} f_{oj,t} I(\breve\phi_{oj,t}, \kappa)^{\frac{1}{\sigma-1}}, \\
-  \tilde Z_{oj,t} &= A_{oj,t} f_{oj,t} \chi^x_j I(\tilde\phi_{oj,t}, \kappa)^{\frac{1}{\sigma-1}},
+  Z_{oj,t} &= A_{oj,t} f_{oj,t}\, I(\bar\phi_{oj,t}, \bar b_{oj,t})^{\frac{1}{\sigma-1}}, \\
+  \breve Z_{oj,t} &= A_{oj,t} f_{oj,t}\, \xi\, I(\breve\phi_{oj,t}, \kappa)^{\frac{1}{\sigma-1}},
+  \label{eq:Zbreve}\\
+  \tilde Z_{oj,t} &= A_{oj,t} f_{oj,t}\, \chi^x_j\, I(\tilde\phi_{oj,t}, \kappa)^{\frac{1}{\sigma-1}},
 \end{align}
 where $\bar b_{oj,t} = \min\{\breve\phi_{oj,t}, \kappa\}$ in agriculture and
 $\bar b_{oj,t} = \kappa$ otherwise, and $\chi^x_j = \xi$ for agriculture and $1$ otherwise.
+
+\paragraph{Correction (review \S2.1).} The $\xi$ factor in \eqref{eq:Zbreve} was
+\emph{absent} in the previous draft and in \texttt{trade.py}: adopters were selected on a
+cutoff that assumes the $\xi$ gain, paid the full adoption fixed cost $\breve F$, and were
+then aggregated into the domestic price index and domestic revenues \emph{without} the
+gain, understating both the price-index benefit of mechanization and mechanized domestic
+revenue by a factor $\xi^{\sigma-1}$. Because agricultural mechanization is the paper's
+headline rural channel, this directly attenuates the mechanism the model exists to
+quantify; the fix is to include $\xi$ in $\breve Z_{oj,t}$ exactly as in $\tilde Z_{oj,t}$.
+% [REVIEW FLAG \S2.1] This is a THEORY correction; the corresponding one-line code fix
+% (multiply Zbreve by xi in trade.py:203) is deferred to the code pass and WILL change all
+% numerical outputs and may break directional tests. See discrepancies section.
 
 \section{Sectoral price indices and revenues}
 \subsection{Price indices}
@@ -253,7 +399,7 @@ Then the destination-$d$ price index in sector $j$ satisfies
 \begin{equation}
   P_{djt}^{1-\sigma}
   =
-  \sum_{o \in \R} \left( B^{trad}_{oj,t} + B^{new}_{oj,t} \right) \tau_{odj,t}^{1-\sigma}
+  \sum_{o \in \Nreg} \left( B^{trad}_{oj,t} + B^{new}_{oj,t} \right) \tau_{odj,t}^{1-\sigma}
   + (\tilde\tau_{dj,t} \tilde p_{j,t})^{1-\sigma}.
 \end{equation}
 
@@ -294,64 +440,108 @@ The mass of active firms, exporters, and adopters is
   \end{cases}
 \end{align}
 
-\section{Goods markets and factor markets}
-\subsection{Expenditure system}
-Under CES demand with constant markups, variable costs are a fixed share of revenues:
+\section{Goods markets and factor markets}\label{sec:factor}
+\subsection{Subsidy accounting: private cost versus factor payments (review \S1.3)}
+The subsidy $s_{oj,t}$ enters prices as $p = \frac{\sigma}{\sigma-1}(1-s_{oj,t})\,c/\phi$,
+so it lowers the firm's \emph{effective} marginal cost to $(1-s_{oj,t})c/\phi$ while the
+\emph{true} resource cost per unit remains $c/\phi$. Three distinct objects must be kept
+apart; conflating them was the source of the accounting leak:
 \begin{align}
-  VC_{oj,t} &= \frac{\sigma-1}{\sigma}
-  \left( R^{trad}_{oj,t} + R^{new}_{oj,t} + R^{x}_{oj,t} \right), \\
-  VC^{trad}_{oj,t} &= \frac{\sigma-1}{\sigma} R^{trad}_{oj,t}, \\
-  VC^{new}_{oj,t} &= \frac{\sigma-1}{\sigma}
-  \left( R^{new}_{oj,t} + R^{x}_{oj,t} \right).
+  \text{true factor cost (resource payment):}\quad
+    TFC_{oj,t} &= \frac{\sigma-1}{\sigma\,(1-s_{oj,t})}\,Y_{oj,t}, \label{eq:TFC}\\
+  \text{firm's private outlay:}\quad
+    (1-s_{oj,t})\,TFC_{oj,t} &= \frac{\sigma-1}{\sigma}\,Y_{oj,t}, \\
+  \text{government subsidy outlay:}\quad
+    s_{oj,t}\,TFC_{oj,t} &= \frac{\sigma-1}{\sigma}\,\frac{s_{oj,t}}{1-s_{oj,t}}\,Y_{oj,t}.
 \end{align}
+Operating profit is $Y_{oj,t}/\sigma$ in all cases (buyers pay $Y$, the firm collects the
+subsidy and pays true factor cost), so the profit block of \S\ref{sec:gov} is unaffected. But
+\emph{factor income and intermediate demand are the full $TFC$}, not the firm's private
+$\frac{\sigma-1}{\sigma}Y$: the previous draft (and \texttt{equilibrium.py}) used
+$\frac{\sigma-1}{\sigma}Y$ for both, understating factor demand and intermediate demand in
+subsidized cells by the factor $1/(1-s_{oj,t})$ (33\% at the calibrated $s=0.25$ in
+Changwon) and dropping the taxed subsidy revenue before it reached factor owners. We
+therefore write the resource-payment split by technology as
+\begin{align}
+  TFC^{trad}_{oj,t} &= \frac{\sigma-1}{\sigma\,(1-s_{oj,t})}\,R^{trad}_{oj,t}, &
+  TFC^{new}_{oj,t}  &= \frac{\sigma-1}{\sigma\,(1-s_{oj,t})}\,\left(R^{new}_{oj,t}+R^{x}_{oj,t}\right),
+\end{align}
+with $TFC_{oj,t}=TFC^{trad}_{oj,t}+TFC^{new}_{oj,t}$.
+% [REVIEW FLAG \S1.3] Grossing up by 1/(1-s) changes every factor-market and government
+% residual in the code (equilibrium.py:135,206). This is a THEORY correction; the code
+% edit and a Walras unit test are deferred to the code pass.
 
-Local intermediate demand for sector $j$ in region $o$ is constructed from sectoral
-variable costs:
+\subsection{Expenditure system}
+Local intermediate demand is the material-input share of the \emph{true factor cost}
+(the seller of each material receives its full market value; the buyer's subsidy is a
+transfer that does not reduce the seller's receipts):
 \begin{equation}
-  E^{M}_{oj,t} = \sum_{k \in \Sct} VC_{ok,t} \gamma^{IO}_{okj,t},
+  E^{M}_{oj,t} = \sum_{k \in \Sct} TFC_{ok,t}\, \gamma^{IO}_{okj,t},
 \end{equation}
-except in agriculture, where the code replaces the baseline input share on the
-agricultural output block with
+except in agriculture, where the baseline and mechanized input shares are applied to the
+corresponding technology blocks,
 \begin{equation}
-  VC^{trad}_{oa,t} \gamma^{IO}_{oak,t}
-  + VC^{new}_{oa,t} \breve\gamma^{IO}_{oak,t}.
+  E^{M}_{oj,t}\big|_{k=a\ \text{term}}
+  = TFC^{trad}_{oa,t}\, \gamma^{IO}_{oaj,t}
+  + TFC^{new}_{oa,t}\, \breve\gamma^{IO}_{oaj,t}.
 \end{equation}
 Total expenditure is
 \begin{equation}
-  E_{oj,t} = E^{F}_{oj,t} + E^{M}_{oj,t}.
+  E_{oj,t} = E^{F}_{oj,t} + E^{M}_{oj,t} + E^{G}_{oj,t},
 \end{equation}
+where $E^{G}_{oj,t}$ is government infrastructure demand for good $j$ (\S\ref{sec:gov}): unlike the
+previous draft, infrastructure spending \emph{buys output} rather than vanishing.
 
 \subsection{Factor prices}
-Labor income equals the labor share of variable costs and land income equals the land
-share of variable costs. For non-agriculture,
+Labor and land income are the labor and land shares of the \emph{true factor cost}
+$TFC$ (not the firm's private outlay), plus --- for labor --- the fixed costs, which are
+paid in local labor rather than destroyed (review \S1.2). Let the regional fixed-cost labor
+bill be
+\begin{equation}
+  \Phi^{F}_{o,t}
+  = \sum_{j\in\Sct}\left(
+      N^{firm}_{oj,t} F_{oj,t}
+      + N^{x}_{oj,t} \tilde F_{oj,t}
+      + N^{adopt}_{oj,t} \breve F_{oj,t}
+    \right),
+\end{equation}
+which measures the resources absorbed by entry, exporting, and adoption. For
+non-agriculture the value-added split is
 \begin{align}
-  w_{o,t} L_{o,t} &= \sum_j (1-\beta_{oj,t}) \gamma_{oj,t} VC_{oj,t}, \\
-  r_{o,t} H_{o,t} &= \sum_j \beta_{oj,t} \gamma_{oj,t} VC_{oj,t}.
+  w_{o,t} L_{o,t} &= \sum_j (1-\beta_{oj,t}) \gamma_{oj,t}\, TFC_{oj,t} \;+\; \Phi^{F}_{o,t}, \\
+  r_{o,t} H_{o,t} &= \sum_j \beta_{oj,t} \gamma_{oj,t}\, TFC_{oj,t}.
 \end{align}
-For agriculture, the code splits baseline and mechanized production:
+For agriculture the baseline and mechanized blocks are split:
 \begin{align}
   w_{o,t} L_{o,t}
   &=
-  (1-\beta_{oa,t}) \gamma_{oa,t} VC^{trad}_{oa,t}
-  + (1-\breve\beta_{oa,t}) \breve\gamma_{oa,t} VC^{new}_{oa,t}
-  + \sum_{j \ne a} (1-\beta_{oj,t}) \gamma_{oj,t} VC_{oj,t}, \\
+  (1-\beta_{oa,t}) \gamma_{oa,t}\, TFC^{trad}_{oa,t}
+  + (1-\breve\beta_{oa,t}) \breve\gamma_{oa,t}\, TFC^{new}_{oa,t} \notag\\
+  &\quad
+  + \sum_{j \ne a} (1-\beta_{oj,t}) \gamma_{oj,t}\, TFC_{oj,t}
+  \;+\; \Phi^{F}_{o,t}, \\
   r_{o,t} H_{o,t}
   &=
-  \beta_{oa,t} \gamma_{oa,t} VC^{trad}_{oa,t}
-  + \breve\beta_{oa,t} \breve\gamma_{oa,t} VC^{new}_{oa,t}
-  + \sum_{j \ne a} \beta_{oj,t} \gamma_{oj,t} VC_{oj,t}.
+  \beta_{oa,t} \gamma_{oa,t}\, TFC^{trad}_{oa,t}
+  + \breve\beta_{oa,t} \breve\gamma_{oa,t}\, TFC^{new}_{oa,t}
+  + \sum_{j \ne a} \beta_{oj,t} \gamma_{oj,t}\, TFC_{oj,t}.
 \end{align}
+% [REVIEW FLAG \S1.2] Fixed costs are here modeled as demand for local labor (denominated
+% in the numeraire), so they are wage income and are simultaneously netted from profits in
+% \S6 --- a transfer, not a leak. An alternative is to make F a labor-quantity requirement
+% priced at w_o (so the fixed-cost bill scales with local wages). The former keeps F
+% comparable to its current numeraire units; confirm the intended units (review \S7.9).
 
-\section{Government budget and profit rebate}
+\section{Government budget and profit rebate}\label{sec:gov}
 Aggregate wage income is
 \begin{equation}
-  W_t = \sum_{o \in \R} w_{o,t} L_{o,t}.
+  W_t = \sum_{o \in \Nreg} w_{o,t} L_{o,t}.
 \end{equation}
 Aggregate profits are
 \begin{equation}
   \Pi_t
   =
-  \sum_{o \in \R} \sum_{j \in \Sct}
+  \sum_{o \in \Nreg} \sum_{j \in \Sct}
   \left[
     \frac{1}{\sigma} Y_{oj,t}
     - N^{firm}_{oj,t} F_{oj,t}
@@ -359,36 +549,154 @@ Aggregate profits are
     - N^{adopt}_{oj,t} \breve F_{oj,t}
   \right].
 \end{equation}
-The profit rebate is
+Here the fixed costs are subtracted from operating profit \emph{and} appear as labor
+income in \S\ref{sec:factor}, so they are a transfer rather than a leak. The profit rebate is
 \begin{equation}
   \bar\pi_t = \frac{\Pi_t}{W_t}.
 \end{equation}
+Aggregate profit $\Pi_t$ can be \emph{negative} in a period where fixed costs exceed
+operating profit; then $\bar\pi_t<0$ and disposable income \eqref{eq:ypc} is reduced. The
+solver must accommodate this (e.g.\ by updating $1+\bar\pi_t$ in levels) rather than
+flooring $\bar\pi_t$ at a small positive number and reporting a floored point as converged
+(review \S2.4).
+% [REVIEW FLAG \S2.4] solver.py/equilibrium.py currently floor pibar (and taubar) at
+% eps=1e-14 in log space, which silently projects negative-profit states to ~0. Fixing the
+% update to levels is a code-pass item.
 
-Subsidy and infrastructure spending imply
+Government spending is financed by the labor-income tax $\bar\tau_t$. Using the correct
+subsidy outlay \eqref{eq:TFC} and letting infrastructure \emph{purchase goods},
 \begin{equation}
   \bar\tau_t
   =
   \frac{
-    \sum_{o,j} \frac{\sigma-1}{\sigma} s_{oj,t} Y_{oj,t}
+    \displaystyle\sum_{o,j} s_{oj,t}\, TFC_{oj,t}
+    + G^{infra}_t
+  }{W_t}
+  =
+  \frac{
+    \displaystyle\sum_{o,j} \frac{\sigma-1}{\sigma}\,\frac{s_{oj,t}}{1-s_{oj,t}}\, Y_{oj,t}
     + G^{infra}_t
   }{W_t},
 \end{equation}
-where $G^{infra}_t$ is exogenous road and building expenditure.
+where the subsidy term now carries the $1/(1-s_{oj,t})$ factor missing from the previous
+draft (review \S1.3). Infrastructure spending $G^{infra}_t$ is allocated across sectors as
+final-type demand $E^{G}_{oj,t}$ (e.g.\ construction/heavy-manufacturing and services), so
+it enters goods-market clearing instead of being a pure tax:
+\begin{equation}
+  \sum_{o\in\Nreg}\sum_{j\in\Sct} E^{G}_{oj,t} = G^{infra}_t .
+\end{equation}
+The ``roads'' counterfactual then combines a trade-cost reduction with the fiscal cost of
+building it, rather than a free trade-cost reduction plus an unrelated lump-sum tax.
+% [REVIEW FLAG \S1.4] The sectoral allocation of G^infra (which goods roads/buildings buy)
+% is a modeling choice; a natural default is heavy-manufacturing + services in fixed
+% shares, or a dedicated construction sector. Confirm the intended mapping. The current
+% code has no E^G at all (infra is a pure tax), so this needs a code change.
+
+\section{Trade balance, adding-up, and welfare}\label{sec:walras}
+\subsection{Trade balance (review \S1.5)}
+Region-$o$ exports earn $\sum_j R^{x}_{oj,t}$; the economy's imports are the CES
+expenditure allocated to the foreign variety in each sector and destination,
+\begin{equation}
+  \mathrm{IM}_t
+  = \sum_{d\in\Nreg}\sum_{j\in\Sct}
+    \frac{(\tilde\tau_{dj,t}\,\tilde p_{j,t})^{1-\sigma}}{P_{djt}^{1-\sigma}}\, E_{dj,t},
+  \qquad
+  \mathrm{EX}_t = \sum_{o\in\Nreg}\sum_{j\in\Sct} R^{x}_{oj,t}.
+\end{equation}
+The aggregate budget must state whose income absorbs any gap. We treat this as a small
+open economy with an exogenous net foreign transfer $\mathrm{NX}^{\star}_t$ (default zero,
+i.e.\ balanced trade):
+\begin{equation}
+  \mathrm{EX}_t - \mathrm{IM}_t = \mathrm{NX}^{\star}_t .
+  \label{eq:tradebalance}
+\end{equation}
+A nonzero $\mathrm{NX}^{\star}_t$ (a trade deficit financed from abroad) must be added to
+aggregate household income for the accounts to close.
+% [REVIEW FLAG \S1.5] The current code imposes no trade-balance condition and no numeraire
+% statement; exports are driven by the exogenous shifter Dtilde and imports by CES demand,
+% with nothing linking them. Enforcing (tradebalance) --- or explicitly carrying a deficit
+% into income --- is a code-pass decision. Balanced trade is the cleanest default; confirm.
+
+\subsection{Aggregate resource constraint and Walras's law}
+With the corrections above --- land rents paid to residents \eqref{eq:ypc}, fixed costs
+paid in labor, subsidies scaled by $1/(1-s)$, and infrastructure buying goods --- aggregate
+income equals aggregate expenditure. Writing aggregate disposable income as
+\begin{equation}
+  Y^{D}_t
+  = \underbrace{W_t}_{\text{wages}}
+  + \underbrace{\textstyle\sum_o r_{o,t}H_{o,t}}_{\text{land rents}}
+  + \underbrace{\Pi_t}_{\text{profits}}
+  - \underbrace{\bar\tau_t W_t}_{\text{taxes}}
+  + \underbrace{\mathrm{NX}^{\star}_t}_{\text{foreign transfer}},
+\end{equation}
+household budget balance gives $\sum_{o,j} E^{F}_{oj,t} = Y^{D}_t$, and goods-market
+clearing (each variety's output equals domestic final $+$ intermediate $+$ government $+$
+export demand for it) then closes the system. Equivalently, the model must satisfy the
+single aggregate resource constraint
+\begin{equation}
+  \sum_{o,j} Y_{oj,t}
+  = \sum_{o,j}\left( E^{F}_{oj,t} + E^{M}_{oj,t} + E^{G}_{oj,t}\right)
+  + \mathrm{EX}_t - \mathrm{IM}_t
+  \quad\text{(net of iceberg losses)} .
+  \label{eq:walras}
+\end{equation}
+This adding-up should be \emph{proven} for the stated ownership structure and
+\emph{unit-tested} at the solved equilibrium to numerical tolerance; every referee who
+checks the accounting will look for it (review \S1, closing note).
+% [REVIEW FLAG \S1] Eq. (walras) is the target identity, stated at the level of a primer.
+% A rigorous proposition (income = expenditure, with the exact iceberg bookkeeping) belongs
+% in the paper (Phase 6). The Walras unit test is a code-pass deliverable.
+
+\subsection{Welfare (review \S3.9)}\label{sec:welfare}
+The Gumbel shock structure of \S\ref{sec:migration} delivers a welfare metric, which the
+previous draft lacked. Before observing idiosyncratic tastes, the expected utility of an
+agent resident in origin $o$ is the log-sum (inclusive value)
+\begin{equation}
+  \mathbb{E}\,U_{o,t}
+  = \frac{1}{\nu}\log\!\left(\sum_{d\in\Nreg}\exp(\nu\, W_{od,t})\right)
+  + \frac{\gamma_{\mathrm{E}}}{\nu},
+  \label{eq:welfare}
+\end{equation}
+where $W_{od,t}$ is the deterministic value in \eqref{eq:Wod} and $\gamma_{\mathrm{E}}$ is
+the Euler--Mascheroni constant. Because $W_{od,t}$ is built on the money-metric real-income
+index $\mathcal{Y}_{d,t}$, \eqref{eq:welfare} is a valid, cardinalization-robust welfare
+measure. Aggregate welfare is the population-weighted sum $\sum_o L_{o,t-1}\,\mathbb{E}U_{o,t}$;
+distributional incidence --- welfare by origin region, and by landowner versus worker and
+by income level (through the PIGL shares) --- is the object the paper is built to deliver,
+and is where this framework improves on aggregate HCI evaluations.
+% [REVIEW FLAG \S3.9] The exact money-metric for general eta (\S2.3 flag) feeds directly into
+% this welfare number; the two must use the same expenditure function. Deriving both is a
+% Phase-1 theory deliverable.
 
 \section{Static equilibrium}
 Given $L_{t-1}$ and exogenous period-$t$ fundamentals, a static equilibrium is a tuple
 \[
   \left\{
     w_{o,t}, r_{o,t}, P_{oj,t}, E_{oj,t}, L_{o,t}, \bar\tau_t, \bar\pi_t
-  \right\}_{o \in \R,\, j \in \Sct}
+  \right\}_{o \in \Nreg,\, j \in \Sct}
 \]
-such that:
+such that (review \S7.6, a self-contained definition):
 \begin{enumerate}[leftmargin=1.5em]
-\item household migration and final demand satisfy the equations in Section 2,
-\item firm cutoffs, price indices, and revenues satisfy the equations in Sections 3 and 4,
-\item expenditure balances satisfy $E_{oj,t} = E^{F}_{oj,t} + E^{M}_{oj,t}$,
-\item factor markets satisfy the wage and land-rent equations in Section 5,
-\item $\bar\pi_t$ and $\bar\tau_t$ satisfy the aggregate budget formulas in Section 6.
+\item \textbf{Migration and population.} $\mu_{od,t}$ solves \eqref{eq:mu} given
+      $(w,P,\bar\tau,\bar\pi,r,H)$ through disposable income \eqref{eq:ypc} and the
+      real-income index \eqref{eq:realincome}, and $L_{d,t}=\sum_o\mu_{od,t}L_{o,t-1}$.
+\item \textbf{Final demand.} $E^{F}_{dj,t}=\psi_{dj,t}\,y^{pc}_{d,t}L_{d,t}$ with the
+      PIGL shares $\psi_{dj,t}$.
+\item \textbf{Firm behavior.} Cutoffs $\bar\phi,\breve\phi,\tilde\phi$, productivity
+      aggregates $Z,\breve Z,\tilde Z$, price indices $P_{djt}$, and revenues
+      $R^{trad},R^{new},R^{x}$ satisfy the production, cutoff, price-index, and revenue
+      equations of \S\ref{sec:cutoffs} and the trade block, including the $\xi$ factor
+      in $\breve Z$ \eqref{eq:Zbreve}.
+\item \textbf{Expenditure clearing.} $E_{oj,t}=E^{F}_{oj,t}+E^{M}_{oj,t}+E^{G}_{oj,t}$
+      with intermediate demand built from $TFC$.
+\item \textbf{Factor markets.} $w_{o,t}$ and $r_{o,t}$ satisfy the labor- and
+      land-payment equations of \S\ref{sec:factor} (factor income $=$ true factor cost
+      $TFC$ plus, for labor, the fixed-cost bill $\Phi^{F}_o$).
+\item \textbf{Government and rebate.} $\bar\tau_t$ and $\bar\pi_t$ satisfy the budget
+      formulas of \S\ref{sec:gov} (subsidy outlay $\sum s\,TFC$, infrastructure buying goods).
+\item \textbf{Trade balance.} $\mathrm{EX}_t-\mathrm{IM}_t=\mathrm{NX}^{\star}_t$
+      \eqref{eq:tradebalance}; equivalently the aggregate resource constraint
+      \eqref{eq:walras} holds.
 \end{enumerate}
 
 The code treats the static equilibrium as a fixed point in
@@ -419,22 +727,94 @@ For example, wages are updated by
 \begin{equation}
   w^{new} = \exp\left[(1-\lambda)\log w^{old} + \lambda \log w^{imp}\right],
 \end{equation}
-and analogously for $r$, $P$, $E$, $\bar\tau$, and $\bar\pi$.
-Later periods are warm-started from the previous period's solution.
+and analogously for $r$, $P$, and $E$. Later periods are warm-started from the previous
+period's solution.
 
-\section{Implementation restrictions}
-The code enforces several restrictions that are useful to keep in mind when extending
-the model:
+\paragraph{Sign-unrestricted rebate (review \S2.4).} The rebate $\bar\pi_t$ and (in
+principle) net transfers can be \emph{negative}, so they cannot be updated by geometric
+damping in logs, which floors them at a small positive number and can report a floored,
+non-converged point as a solution. They should be updated in levels --- e.g.\ damping
+$1+\bar\pi_t$ geometrically, or $\bar\pi_t$ arithmetically --- and residuals reported at
+the true fixed point. The bounded-support $\max\{1,\cdot\}$ truncations in the cutoffs
+introduce kinks where a cutoff hits $1$ or $\kappa$; the solver should be checked for
+convergence to the genuine fixed point across these kinks rather than to a projected one.
+% [REVIEW FLAG \S2.4] This describes the required solver change; the edit to
+% solver.py (_geom_update_scalar on taubar/pibar) and equilibrium.py floors is a code-pass
+% item.
+
+\section{Restrictions, existence, and market structure}\label{sec:restrictions}
+\subsection{Parameter and equilibrium restrictions}
 \begin{itemize}[leftmargin=1.5em]
-\item $L_0$ is normalized to sum to one.
-\item $\gamma_{oj,t} + \sum_k \gamma^{IO}_{ojk,t} = 1$ for every $(o,j,t)$.
-\item $\breve\gamma_{oj,t} + \sum_k \breve\gamma^{IO}_{ojk,t} = 1$ for every $(o,j,t)$.
+\item $L_0$ is normalized to sum to one (so populations are shares; see the numeraire
+      discussion in \S3.1).
+\item $\gamma_{oj,t} + \sum_k \gamma^{IO}_{ojk,t} = 1$ and
+      $\breve\gamma_{oj,t} + \sum_k \breve\gamma^{IO}_{ojk,t} = 1$ for every $(o,j,t)$.
 \item $\breve\gamma_{oj,t}\breve\beta_{oj,t} = \gamma_{oj,t}\beta_{oj,t}$, so the
       land share inside value added is preserved across agricultural technologies.
 \item Outside the heavy-manufacturing input, the mechanized agricultural input shares
-      are restricted to equal the baseline input shares.
-\item Subsidy rates satisfy $0 \le s_{oj,t} < 1$.
+      equal the baseline input shares.
+\item Subsidy rates satisfy $0 \le s_{oj,t} < 1$ (strict, since $1/(1-s)$ appears in
+      \eqref{eq:TFC}).
+\item \textbf{PIGL regularity (new, review \S7.3):} $\eta>0$, $v_{\mathrm{Agri}}>0$, and the
+      income range keeps every share $\psi_{dj,t}\in[0,1]$ at the solution.
+\item \textbf{Cutoff ordering (new, review \S2.2):} in agriculture,
+      $\bar\phi_{oj,t}\le\breve\phi_{oj,t}\le\tilde\phi_{oj,t}$, so that exporters are
+      adopters and no firm is simultaneously a mechanized exporter and a traditional
+      domestic producer. This must be verified at the solution, not assumed.
 \end{itemize}
+
+\subsection{Existence, uniqueness, and multiplicity (review \S3.10)}\label{sec:existence}
+Lagging agglomeration and congestion in $L_{t-1}$ removes within-period increasing returns,
+which helps, but the static system still couples IO linkages, selection cutoffs with kinks
+(the $\max\{1,\cdot\}$ truncations), and non-homothetic demand; existence and uniqueness
+are not automatic and should be addressed (cf.\ Allen--Arkolakis--Li sufficient
+conditions). More importantly, the \emph{dynamic} system with $\rho_j>0$ can exhibit path
+multiplicity: temporary policy can move the economy across basins of attraction. This is
+not a nuisance but the economics of big-push industrial policy (the Choi--Levchenko
+question), and a full treatment should characterize when temporary HCI shifts are
+permanent.
+% [REVIEW FLAG \S3.10] Existence/uniqueness results and the multiplicity analysis are
+% research deliverables (propositions), not edits. Recorded here so the primer stops being
+% silent about them.
+
+\subsection{Market structure caveat (review \S3.5)}
+Agriculture is currently Melitz monopolistic competition: millions of rice farmers each
+earning a $\sigma/(\sigma-1)$ markup on a differentiated variety. This is hard to defend
+and distorts subsidy pass-through and the adoption calculus. The literature standard is
+competitive, homogeneous-good agriculture with heterogeneous \emph{land quality} (Sotelo
+2020), so that selection into mechanization is driven by land heterogeneity rather than
+monopoly power. At minimum the market-structure assumption must be justified or shown to be
+innocuous by robustness.
+% [REVIEW FLAG \S3.5] Re-specifying agriculture as competitive is a structural change, not a
+% theory edit; flagged for the later phase.
+
+\section{Discrepancies between this note and the current code}\label{sec:discrepancies}
+This revision corrects the \emph{theory}. Until the accompanying code pass lands, several
+equations here intentionally diverge from \texttt{src/korea\_growth/} (section numbers below
+refer to \texttt{docs/model\_review.md}). The outstanding code changes are:
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{$\xi$ in the domestic mechanized aggregate} \eqref{eq:Zbreve}:
+      \texttt{trade.py} (the \texttt{Zbreve} line) omits $\xi$; multiply it in. (review \S2.1)
+\item \textbf{Subsidy grossing-up}: replace the private cost $\frac{\sigma-1}{\sigma}R$ by
+      $TFC=\frac{\sigma-1}{\sigma(1-s)}R$ in factor demands and intermediate demand, and
+      use $\sum s\,TFC$ for the subsidy outlay in \texttt{equilibrium.py}. (review \S1.3)
+\item \textbf{Land rents to households}: add $r_{d}H_{d}/L_{d}$ to disposable income in
+      \texttt{preferences.py}/\texttt{equilibrium.py}. (review \S1.1)
+\item \textbf{Fixed costs as labor income}: add $\Phi^{F}_{o}$ to labor demand. (review \S1.2)
+\item \textbf{Infrastructure buys goods}: add $E^{G}$ and route $G^{infra}$ into
+      goods-market clearing. (review \S1.4)
+\item \textbf{Migration real-income index}: use the positive $\mathcal{Y}_{d}$ of
+      \eqref{eq:realincome} in place of the sign-ambiguous $V_d$ in
+      \texttt{preferences.py}. (review \S2.3)
+\item \textbf{Sign-unrestricted $\bar\pi$}: update in levels, not logs. (review \S2.4)
+\item \textbf{New checks}: cutoff ordering, PIGL share bounds, and a Walras's-law assertion
+      at the solved equilibrium (\texttt{checks.py} / tests). (review \S1, \S2.2, \S7.3)
+\end{enumerate}
+Items 1--8 are the ``theory-consistent'' minimum. Structural upgrades flagged above ---
+capital and credit wedges (review \S3.1), annual/forward-looking migration (review \S3.2),
+competitive agriculture (review \S3.5), sector-specific $\sigma_j$ and non-traded services
+(review \S3.6), separate inbound/outbound port frictions (review \S3.7), county-level
+geography and estimation (review \S4) --- are deliberately \emph{not} attempted in this pass.
 
 \section{Interpretation}
 The model combines five ingredients:
