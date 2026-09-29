@@ -613,11 +613,16 @@ i.e.\ balanced trade):
   \label{eq:tradebalance}
 \end{equation}
 A nonzero $\mathrm{NX}^{\star}_t$ (a trade deficit financed from abroad) must be added to
-aggregate household income for the accounts to close.
-% [REVIEW FLAG \S1.5] IMPLEMENTED as "carry the net position into income": the code adds
-% T = IM - EX to household income (distributed proportional to income; equilibrium.py), so
-% the accounts close with NX* = EX - IM an endogenous residual. Exactly pinning NX* = 0
-% would need an added equilibrating instrument and is left for later. See sec:discrepancies.
+aggregate household income for the accounts to close. $\mathrm{NX}^{\star}_t$ must be
+\emph{exogenous}. The household budget and goods-market clearing together imply that the net
+foreign transfer equals $\mathrm{IM}_t-\mathrm{EX}_t$ at any equilibrium, so treating the
+transfer as whatever the current allocation implies drops \eqref{eq:tradebalance}. It then
+leaves the domestic price level relative to the numeraire, and hence the trade deficit and
+real income, undetermined.
+% [REVIEW FLAG \S1.5] IMPLEMENTED: the code sets T = -NX*, NX* = nx_gdp_t * GDP (default 0,
+% balanced trade), distributed proportional to income (equilibrium.py). The earlier closure
+% T = IM - EX (at the current guess) admitted a continuum of equilibria indexed by the trade
+% deficit (docs/fresh_look.md, sec. 2.1). See sec:discrepancies.
 
 \subsection{Aggregate resource constraint and Walras's law}
 With the corrections above --- land rents paid to residents \eqref{eq:ypc}, fixed costs
@@ -819,14 +824,20 @@ minimum --- items 1--8 --- has landed:
 
 \paragraph{Two implementation choices worth recording.}
 \begin{itemize}[leftmargin=1.5em]
-\item \emph{Trade closure.} Once the other leaks are closed, the household budget and the
-      CES resource identity \emph{together} force balanced trade, so the net foreign
-      position $T=\mathrm{IM}-\mathrm{EX}$ is carried into household income. It is
-      distributed \emph{proportional to income} (a uniform income scale factor) rather
-      than lump-sum, which keeps per-capita income strictly positive during the solve.
-      This makes $\mathrm{NX}^{\star}$ an endogenous residual equal to $\mathrm{EX}-\mathrm{IM}$;
-      pinning $\mathrm{NX}^{\star}=0$ exactly would require an added equilibrating
-      instrument and is left for later (review \S1.5).
+\item \emph{Trade closure.} The household budget and goods-market clearing together imply
+      that the net foreign transfer equals $\mathrm{IM}-\mathrm{EX}$ at any fixed point, so
+      the transfer is pinned exogenously. The code sets $T=-\mathrm{NX}^{\star}$ with
+      $\mathrm{NX}^{\star}_t=\mathrm{nx}_t\cdot\mathrm{GDP}_t$ (default $\mathrm{nx}_t=0$,
+      balanced trade). The transfer is distributed \emph{proportional to income} (a uniform
+      income scale factor) rather than lump-sum, which keeps per-capita income strictly
+      positive during the solve. $\mathrm{EX}-\mathrm{IM}=\mathrm{NX}^{\star}$ then holds at
+      the solution, with the domestic price level as the equilibrating variable, so no extra
+      instrument is needed.
+
+      An earlier version set $T=\mathrm{IM}-\mathrm{EX}$ at the current guess. That replaced
+      the external-balance condition by an identity and admitted a one-dimensional continuum
+      of equilibria indexed by the trade deficit, and solutions depended on the solver's
+      initial guess (review \S1.5; \texttt{docs/fresh\_look.md}, \S2.1).
 \item \emph{Cutoff ordering.} The ordering $\bar\phi\le\breve\phi\le\tilde\phi$ is provided
       as a post-solution \emph{diagnostic} (\texttt{checks.cutoff\_ordering\_violation}),
       not a hard constraint, because the current toy calibration violates it --- exactly
