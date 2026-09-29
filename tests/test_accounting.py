@@ -23,7 +23,7 @@ from korea_growth.checks import (
 )
 from korea_growth.distributions import integral_phi_sigma_minus_1
 from korea_growth.preferences import indirect_utility, real_income_index
-from korea_growth.solver import solve_dynamic_equilibrium
+from korea_growth.solver import initial_guess, solve_dynamic_equilibrium, solve_static_equilibrium
 from korea_growth.trade import compute_sector_state
 from korea_growth.types import SolverOptions
 from dataclasses import replace
@@ -67,6 +67,45 @@ def test_walras_and_resource_constraint_hold(toy_solution):
 
         # Government budget balances: tau * W == subsidies + infrastructure (1.3, 1.4).
         assert abs(agg["gov_budget_residual"]) < 1e-8
+
+
+def test_equilibrium_is_invariant_to_initial_guess():
+    # The trade closure must pin domestic prices relative to the foreign numeraire. Under the
+    # former closure (transfer = IM - EX at the current guess) scaled guesses converged to
+    # different wage levels and trade deficits (docs/fresh_look.md, section 2.1).
+    inputs = build_toy_inputs()
+    L0 = inputs.exog.L0
+    opts = SolverOptions(max_iter=20000, tol=1e-11, verbose=False)
+    g0 = initial_guess(inputs=inputs, t=0, L_prev=L0)
+
+    sols = []
+    for scale in (0.5, 1.0, 2.0):
+        guess = dict(g0, w=g0["w"] * scale, r=g0["r"] * scale, E=g0["E"] * scale)
+        sols.append(
+            solve_static_equilibrium(inputs=inputs, t=0, L_prev=L0, guess=guess, options=opts)
+        )
+
+    for eq in sols[1:]:
+        np.testing.assert_allclose(eq.w, sols[0].w, rtol=1e-7)
+        np.testing.assert_allclose(eq.P, sols[0].P, rtol=1e-7)
+        np.testing.assert_allclose(eq.L, sols[0].L, rtol=1e-7)
+
+
+def test_net_exports_are_pinned_by_nx_gdp():
+    inputs = build_toy_inputs()
+    nx = np.full(inputs.dims.T, -0.05)
+    inputs = replace(inputs, exog=replace(inputs.exog, nx_gdp=nx))
+    path = solve_dynamic_equilibrium(
+        inputs=inputs, options=SolverOptions(max_iter=20000, tol=1e-11, verbose=False)
+    )
+    for t in range(inputs.dims.T):
+        L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
+        agg = aggregate_accounting(inputs, t, L_prev, _Eq(path, t))
+
+        assert agg["NX"] / agg["GDP"] == pytest.approx(-0.05, abs=1e-8)
+        assert abs(agg["nx_residual"]) < 1e-8
+        assert abs(agg["income_minus_expenditure"]) < 1e-8
+        assert abs(agg["resource_residual"]) < 1e-8
 
 
 def test_population_is_conserved(toy_solution):

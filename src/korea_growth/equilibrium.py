@@ -131,25 +131,45 @@ def compute_implied_static(
     tfc_new = tfc_scale * (R_breve + R_tilde)
 
     # ------------------------------------------------------------
-    # 3) Trade aggregates and the net foreign transfer (model_review.md 1.5)
-    #    Exports earn EX from abroad; imports IM leak abroad. Once the other accounting
-    #    leaks are closed, the household budget and the CES resource identity together
-    #    force balanced trade, so the net foreign position must be carried into household
-    #    income as a transfer T = IM - EX (a deficit is financed from abroad, a surplus is
-    #    lent abroad). We distribute T proportional to pre-transfer income, i.e. as a
-    #    uniform income scale factor. This is robustly positive (it stays feasible as long
-    #    as net exports are smaller than income) and closes income = expenditure exactly.
+    # 3) Intermediate demand (depends only on TFC; needed here for GDP)
     # ------------------------------------------------------------
+    gamma_io_t = exog.gamma_io[t, :, :, :]  # (N,J,J)
+    intermediate = np.einsum("ok,okj->oj", tfc_total, gamma_io_t)
+
+    if agri_idx is not None:
+        gammabreve_io_t = exog.gammabreve_io[t, :, :, :]
+        # Replace the agriculture-output-sector contribution (trad vs new tech shares)
+        old_contrib = tfc_total[:, agri_idx][:, None] * gamma_io_t[:, agri_idx, :]
+        new_contrib = (
+            tfc_trad[:, agri_idx][:, None] * gamma_io_t[:, agri_idx, :]
+            + tfc_new[:, agri_idx][:, None] * gammabreve_io_t[:, agri_idx, :]
+        )
+        intermediate = intermediate - old_contrib + new_contrib
+
+    # ------------------------------------------------------------
+    # 4) Trade closure (model_review.md 1.5; docs/fresh_look.md section 2.1)
+    #    Households receive a net foreign transfer T that finances the trade deficit. T must
+    #    be pinned exogenously. Income = expenditure and goods-market clearing already imply
+    #    T = IM - EX at any fixed point, so the previous closure (T = IM - EX evaluated at the
+    #    current guess) dropped the one condition tying domestic prices to the foreign
+    #    numeraire and admitted a continuum of equilibria indexed by the trade deficit. We set
+    #    T = -NX*, with NX* = nx_gdp_t * GDP (default: balanced trade), so EX - IM = NX* holds
+    #    at the solution. T is distributed proportional to pre-transfer income (a uniform
+    #    scale factor that keeps per-capita income positive).
+    # ------------------------------------------------------------
+    gdp = float(np.sum(gross_output) - np.sum(intermediate))
+    nx_target = (0.0 if exog.nx_gdp is None else float(exog.nx_gdp[t])) * gdp
+
     EX = float(np.sum(R_tilde))
     import_term = np.empty((N, J), dtype=float)
     for j in range(J):
         import_term[:, j] = np.power(exog.tautilde[t, j, :] * exog.ptilde[t, j], 1.0 - sigma)
     import_share = import_term / np.maximum(np.power(P, 1.0 - sigma), eps)  # (N,J)
     IM = float(np.sum(import_share * E))
-    transfer = IM - EX
+    transfer = -nx_target
 
     # ------------------------------------------------------------
-    # 4) Household income and population (inner fixed point for land rents per capita)
+    # 5) Household income and population (inner fixed point for land rents per capita)
     #    Disposable income now includes local land rents r_o H_o / L_o (model_review.md 1.1)
     #    and the net foreign transfer. Per-capita land rent and the income-proportional
     #    transfer both depend on the migration-implied L, which depends on income, so a
@@ -185,21 +205,8 @@ def compute_implied_static(
     y_pc = base_pc * transfer_scale
 
     # ------------------------------------------------------------
-    # 5) Intermediate + final + government demand => implied expenditures E
+    # 6) Intermediate + final + government demand => implied expenditures E
     # ------------------------------------------------------------
-    gamma_io_t = exog.gamma_io[t, :, :, :]  # (N,J,J)
-    intermediate = np.einsum("ok,okj->oj", tfc_total, gamma_io_t)
-
-    if agri_idx is not None:
-        gammabreve_io_t = exog.gammabreve_io[t, :, :, :]
-        # Replace the agriculture-output-sector contribution (trad vs new tech shares)
-        old_contrib = tfc_total[:, agri_idx][:, None] * gamma_io_t[:, agri_idx, :]
-        new_contrib = (
-            tfc_trad[:, agri_idx][:, None] * gamma_io_t[:, agri_idx, :]
-            + tfc_new[:, agri_idx][:, None] * gammabreve_io_t[:, agri_idx, :]
-        )
-        intermediate = intermediate - old_contrib + new_contrib
-
     # Final consumption demand
     final_cons = np.empty((N, J), dtype=float)
     for o in range(N):
@@ -223,7 +230,7 @@ def compute_implied_static(
     E_implied = intermediate + final_cons + E_gov
 
     # ------------------------------------------------------------
-    # 6) Factor markets => implied (w, r)
+    # 7) Factor markets => implied (w, r)
     #    Factor income = labor/land share of true factor cost TFC; labor additionally
     #    receives the fixed-cost bill Phi^F (fixed costs are paid in local labor, not
     #    destroyed; model_review.md 1.2).
@@ -267,7 +274,7 @@ def compute_implied_static(
     r_implied = land_payment / H_safe
 
     # ------------------------------------------------------------
-    # 7) Profits, pibar and government budget
+    # 8) Profits, pibar and government budget
     # ------------------------------------------------------------
     wage_bill = float(np.sum(w * L))
     wage_bill = max(wage_bill, eps)
@@ -330,7 +337,11 @@ def compute_implied_static(
         "absorption": float(np.sum(E_implied)),
         "EX": EX,
         "IM": IM,
+        "GDP": gdp,
+        "NX": EX - IM,
         "transfer": transfer,
+        # Trade closure: EX - IM == NX* (an equilibrium condition, not an identity).
+        "nx_residual": (EX - IM) - nx_target,
         # Resource constraint: sum(Y) == sum(E) + EX - IM (CES bookkeeping).
         "resource_residual": float(np.sum(gross_output)) - (float(np.sum(E_implied)) + EX - IM),
         # Income == final expenditure (guards land-rent / transfer inclusion).
