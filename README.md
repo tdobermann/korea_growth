@@ -52,6 +52,8 @@ Relative to the earlier toy policy exercise, the repository now includes:
   economy against approximate Korean data, plus an initial-guess invariance check
 - [docs/fresh_look.md](docs/fresh_look.md): diagnostics and a proposed re-architecture for
   the macro story, including how the township panel enters the model
+- [docs/review_fresh_look.md](docs/review_fresh_look.md): consolidated referee report on the
+  trade-closure fix (PR #4) and the "Matsuyama in space" proposal
 - [docs/model.tex](/c:/korea_growth/docs/model.tex): formal background write-up of the
   implemented model
 
