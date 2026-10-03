@@ -66,6 +66,20 @@ class SectorState:
     B_domestic: np.ndarray  # (N,) sum over domestic varieties of factory-gate p^(1-sigma)
     D_export: float  # effective foreign demand shifter (= Dtilde when sigma_x = sigma)
 
+    # Fixed costs per firm in numeraire units (N,)
+    F_cost: np.ndarray
+    Fbreve_cost: np.ndarray
+    Ftilde_cost: np.ndarray
+
+    @property
+    def fixed_cost_bill(self) -> np.ndarray:
+        """Regional fixed-cost bill (N,): paid to local labour."""
+        return (
+            self.num_firms * self.F_cost
+            + self.num_exporters * self.Ftilde_cost
+            + self.num_adopters * self.Fbreve_cost
+        )
+
 
 def nested_cutoffs(slopes: np.ndarray, costs: np.ndarray, *, sigma: float) -> np.ndarray:
     """Productivity thresholds of a nested discrete choice with profits linear in phi^(sigma-1).
@@ -148,9 +162,12 @@ def compute_sector_state(
     gamma_o = exog.gamma[t, :, j]
     gamma_io_o = exog.gamma_io[t, :, j, :]  # (N,J)
 
-    F_o = exog.F[t, :, j]
-    Fbreve_o = exog.Fbreve[t, :, j]
-    Ftilde_o = exog.Ftilde[t, :, j]
+    # Fixed costs in numeraire units (labour requirements times the local wage if
+    # params.fixed_costs_in_labor).
+    fc_unit = w if params.fixed_costs_in_labor else 1.0
+    F_o = exog.F[t, :, j] * fc_unit
+    Fbreve_o = exog.Fbreve[t, :, j] * fc_unit
+    Ftilde_o = exog.Ftilde[t, :, j] * fc_unit
 
     tautilde_o = exog.tautilde[t, j, :]
     Dtilde_j = float(exog.Dtilde[t, j])
@@ -334,4 +351,7 @@ def compute_sector_state(
         S_o=S_o,
         B_domestic=base_total,
         D_export=float(D_x),
+        F_cost=np.broadcast_to(F_o, (N,)).astype(float),
+        Fbreve_cost=np.broadcast_to(Fbreve_o, (N,)).astype(float),
+        Ftilde_cost=np.broadcast_to(Ftilde_o, (N,)).astype(float),
     )

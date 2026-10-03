@@ -88,6 +88,12 @@ class ModelParameters:
     # substitution elasticity sigma. None = sigma.
     sigma_x: Optional[float] = None
 
+    # Units of the fixed costs F, Fbreve, Ftilde. False: numeraire units. True: local labour
+    # requirements, so the cost is F * w_o. Fixed costs are paid in local labour, so labour
+    # units keep entry, exporting and mechanisation from getting mechanically cheaper in real
+    # terms as wages grow (docs/fresh_look.md 2.5).
+    fixed_costs_in_labor: bool = False
+
 
 @dataclass(frozen=True)
 class ModelExogenousPaths:

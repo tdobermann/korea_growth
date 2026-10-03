@@ -34,23 +34,25 @@ standard turns up five problems (§2). Four of them are new relative to the earl
    pick. **Fixed in this commit:** net exports are now pinned exogenously (default: balanced
    trade), a regression test checks that the solution does not depend on the initial guess,
    and the README numbers are refreshed.
-2. **The calibrated 1965 economy is not Korea on any macro margin.** Exports are 82% of GDP
-   (data: ~9%), agriculture has 25% of employment counted in workers (data: ~59%), a third
-   of the population leaves the "Rural" region in the first period, and rural real income is
-   20% *above* urban.
-3. **There is no growth engine.** Baseline real GDP per capita (double-deflated) rises 16%
+2. **The calibrated 1965 economy is not Korea on any macro margin.** Exports are 73% of GDP
+   (data: ~9%). Agriculture has 11% of employment counted in workers (data: ~59%): food
+   imports supply 58% of food spending. More than half the population leaves the "Rural"
+   region in the first period, and rural real income is 18% *above* urban.
+3. **There is no growth engine.** Baseline real GDP per capita (double-deflated) rises 12%
    over 1965–85 (the data: roughly fourfold). The HCI package supplies about two-thirds of all
    the growth the model has, so by construction policy explains most of what moves.
 4. **The mechanisation and export margins were not nested and are still at a corner.** The
    cutoffs were computed one margin at a time, and at the calibrated parameters φ̃ < φ̆ < φ̄
-   everywhere, so farms exported or mechanised without entering. **The nesting is now fixed in
-   code** (exporters and adopters are active firms). At the calibrated fixed costs, though, all
-   three cutoffs coincide: every active farm mechanises and exports, and **traditional
-   agriculture still has zero output share.** The rural mechanisation channel cannot operate
-   until F̆ and F̃ are recalibrated or agriculture is rebuilt (§3.4).
+   everywhere, so farms exported or mechanised without entering. **Fixed:** the cutoffs come
+   from a nested choice, and the agricultural margin is recalibrated (§2.4). Mechanisation is
+   now mainly labour-saving (ξ = 1.2), fixed costs are in labour units, and farm foreign demand
+   and the adoption cost hit a 1965 traditional output share of 0.97. That share falls to 0.956
+   by 1985 in the baseline and to 0.931 with HCI. Diffusion is slow because baseline wages
+   barely grow (item 3).
 5. **The headline effects were artifacts of the closure.** With a determinate closure, the
    1985 effect on the heavy-manufacturing *gross-output* share is +0.104, not +0.057. With the
-   nested choice it is +0.095 (value-added share +0.083, employment share +0.089). The
+   nested choice it is +0.095. After the agricultural recalibration it is +0.103 (value-added
+   share +0.088, employment share +0.092). The
    pre-accounting-fix code gave +0.127 and was itself guess-invariant, so the accounting fixes
    lowered the effect by about 0.02. The fall to +0.057 was the indeterminate closure picking
    a point (§2.1).
@@ -182,21 +184,24 @@ current-account deficits, which were large in the 1960s–70s, can now be fed in
 shares in the first three rows are *gross-output* shares (`aggregate_output_shares`), which
 include intermediate sales. Value-added and employment shares are reported separately below.
 
-| moment | old closure (README before) | determinate closure | + nested choice (now) |
-|---|---|---|---|
-| aggregate agriculture share | −0.041 | −0.045 | −0.040 |
-| aggregate heavy-mfg share | +0.057 | **+0.104** | **+0.095** |
-| aggregate services share | −0.016 | **−0.060** | −0.055 |
-| Changwon wage | +0.144 | +0.120 | +0.122 |
-| Changwon mfg share | +0.229 | +0.287 | +0.274 |
-| Seoul population share | −0.026 | −0.029 | −0.030 |
-| Rural population share | +0.033 | +0.025 | +0.027 |
-| Rural income per capita | +0.199 | +0.171 | +0.174 |
-| Rural / Daegu services share | +0.106 / +0.106 | +0.094 / +0.081 | +0.110 / +0.093 |
+| moment | old closure (README before) | determinate closure | + nested choice | + ag recalibration (now) |
+|---|---|---|---|---|
+| aggregate agriculture share | −0.041 | −0.045 | −0.040 | −0.005 |
+| aggregate heavy-mfg share | +0.057 | **+0.104** | **+0.095** | **+0.103** |
+| aggregate services share | −0.016 | **−0.060** | −0.055 | −0.098 |
+| Changwon wage | +0.144 | +0.120 | +0.122 | +0.087 |
+| Changwon mfg share | +0.229 | +0.287 | +0.274 | +0.287 |
+| Seoul population share | −0.026 | −0.029 | −0.030 | −0.033 |
+| Rural population share | +0.033 | +0.025 | +0.027 | +0.031 |
+| Rural income per capita | +0.199 | +0.171 | +0.174 | +0.121 |
+| Rural / Daegu services share | +0.106 / +0.106 | +0.094 / +0.081 | +0.110 / +0.093 | +0.064 / +0.065 |
 
-With the nested choice, the 1985 heavy-manufacturing effect is +0.095 on the gross-output
-share, +0.083 on the value-added share and +0.089 on the employment share (workers). The
-nesting accounts for essentially all of the move from +0.104. Switching the migration index to
+With the nested choice, the 1985 heavy-manufacturing effect was +0.095 on the gross-output
+share (+0.083 value added, +0.089 employment); the nesting accounts for essentially all of
+the move from +0.104. After the agricultural recalibration (§2.4) it is +0.103 / +0.088 /
++0.092. The agriculture-share effect almost vanishes, because farming is now small and
+inward-looking: farm output no longer depends on exports, and food imports absorb the demand
+side. Switching the migration index to
 the exact PIGL equivalent income moves it by less than 10⁻⁵. All directional tests still
 pass.
 
@@ -221,8 +226,10 @@ parameter, `sigma_x` (default σ = 4), and the headline depends on it heavily:
 
 | `sigma_x` | 2 | 4 (default) | 6 |
 |---|---|---|---|
-| 1985 heavy-mfg gross-output share effect | +0.026 | +0.095 | +0.133 |
-| 1985 heavy-mfg employment share effect | +0.020 | +0.089 | +0.126 |
+| 1985 heavy-mfg gross-output share effect | +0.021 | +0.103 | +0.137 |
+| 1985 heavy-mfg employment share effect | +0.017 | +0.092 | +0.117 |
+
+(Current calibration. σ_x = 6 needs solver damping 0.1; the default 0.25 cycles at t = 1.)
 
 With a low aggregate elasticity, the export expansion that HCI induces depresses its own terms
 of trade and the reallocation is small. `sigma_x` must be calibrated externally (§1.3), and
@@ -232,12 +239,13 @@ the headline reported with its sensitivity to it.
 
 | 1965 | model | data |
 |---|---|---|
-| Exports / GDP (= imports / GDP under balanced trade) | 0.82 (0.95 before the nested choice) | ~0.09 / ~0.16 |
-| Agriculture share of employment (workers) | 0.25 | ~0.59 |
-| Agriculture share of value added | 0.31 | ~0.38 |
-| Share outside "Rural" | 0.80 (L0 = 0.45; Rural falls from 0.55 to 0.20 within the first period) | ~0.32 urban |
-| Rural / urban equivalent income | 1.20 | < 1 |
-| Farm output share of traditional (non-mechanised) technology | 0.00 | ~1 |
+| Exports / GDP (= imports / GDP under balanced trade) | 0.73 (0.82 before the ag recalibration, 0.95 before the nested choice) | ~0.09 / ~0.16 |
+| Agriculture share of employment (workers) | 0.11 (0.25 before the ag recalibration) | ~0.59 |
+| Agriculture share of value added | 0.12 (0.31 before) | ~0.38 |
+| Food imports / food expenditure | 0.58 | small (grain imports were mainly aid-financed; verify) |
+| Share outside "Rural" | 0.82 (L0 = 0.45; Rural falls from 0.55 to 0.18 within the first period) | ~0.32 urban |
+| Rural / urban equivalent income | 1.18 | < 1 |
+| Farm output share of traditional (non-mechanised) technology | 0.97 (calibrated; 0.00 before) | ~1 |
 
 *Measurement.* Employment counts workers: (variable + fixed-cost labour payments) / local
 wage, which sums to population. The earlier scorecard summed variable labour *payments*. It
@@ -270,12 +278,13 @@ sector.
 
 | 1965 → 1985 | baseline | HCI package | data |
 |---|---|---|---|
-| real GDP per capita (double-deflated) | ×1.156 | ×1.524 | ×~4 |
-| real consumption per capita | ×1.138 | ×1.554 | — |
-| agriculture share of employment, workers (pp) | −2.5 | −4.8 | −34 |
+| real GDP per capita (double-deflated) | ×1.118 | ×1.377 | ×~4 |
+| real consumption per capita | ×1.104 | ×1.405 | — |
+| agriculture share of employment, workers (pp) | −1.0 | −1.1 | −34 |
+| traditional share of farm output | 0.970 → 0.956 | 0.970 → 0.931 | ~1 → well below 1 |
 
-The baseline generates about a tenth of the observed log growth. Adding the full HCI package
-brings it to about a third, so policy accounts for roughly two-thirds of all the growth the
+The baseline generates under a tenth of the observed log growth. Adding the full HCI package
+brings it to under a quarter, so policy accounts for roughly two-thirds of all the growth the
 model has. Every policy effect is measured against a Korea that does not grow. As a result, PIGL
 Engel effects, the value of mechanising, and the wage path that drives migration are all
 evaluated at 1965 income levels. The review's worry (§4.6) that HCI is over-credited is
@@ -306,8 +315,8 @@ Agricultural exporters use the mechanised technology, so they also adopt
 (`trade.nested_cutoffs`; `model.tex` eq. `nested`). The fixed-cost bill is now consistent:
 every exporter and adopter also pays F.
 
-**Not fixed: the calibration corner.** With the calibrated F̆ and F̃, the marginal entrant
-prefers to mechanise and export, so all three cutoffs coincide:
+**The calibration corner (now recalibrated).** With the earlier F̆ and F̃, the marginal
+entrant preferred to mechanise and export, so all three cutoffs coincided:
 
 | Agriculture, Rural region (nested, now) | 1965 | 1985 | 1985, HCI |
 |---|---|---|---|
@@ -317,9 +326,42 @@ prefers to mechanise and export, so all three cutoffs coincide:
 | share of farm output exported | 0.55 | 0.52 | 0.43 |
 
 Services: every active firm exports, and 48–55% of output is exported. Channel 3 (cutting F̆)
-now acts on real farms but cannot produce the 1965–85 diffusion of power tillers from ≈0,
-because adoption is already universal in 1965. An interior adoption margin needs a recalibrated
-F̆ and F̃ or, as §3.4 recommends, competitive agriculture with a farm-size threshold.
+acted on real farms but could not produce the 1965–85 diffusion of power tillers from ≈0,
+because adoption was already universal in 1965.
+
+*Why.* A traditional segment needs F̆/F > Δ and (F̆ + F̃)/F > Δ + a_X/a_T, where
+Δ = (ξ c/c̆)^{σ−1} − 1 is the profit gain from mechanising (`model.tex` eq. `interior`). At the
+old calibration Δ = 0.54–0.72 against F̆/F = 0.25. Farm foreign demand (D̃ = 0.5) made the
+export market worth about twice the domestic one (a_X/a_T = 1.6–2.6), and exporting requires
+mechanising, so the second condition failed by a factor of 5–6. Mechanising was also a
+productivity gift: at ξ = 1 it *lost* money everywhere (c/c̆ ≈ 0.8, machines being expensive
+relative to wages), and only ξ = 1.5 made it pay.
+
+*Recalibration* (`scripts/calibrate_agriculture.py`):
+1. ξ = 1.2, close to the 1965–85 range of c̆/c (1.13–1.30). Mechanising then pays only once
+   wages rise and HCI machinery gets cheaper, which is the induced-innovation channel.
+2. Fixed costs are labour requirements (`fixed_costs_in_labor`), converted from the old
+   numeraire values at the 1965 mean wage, so they rise with wages.
+3. D̃_Agri = 0.220 and F̆_Agri = 4.28 (labour units) solve for a 1965 traditional share of
+   0.97 and farm exports of 1% of farm output (both placeholders to replace with data).
+
+| Agriculture (recalibrated) | 1965 | 1985 | 1985, HCI |
+|---|---|---|---|
+| traditional share of farm output | 0.970 | 0.956 | 0.931 |
+
+The corner is gone, and HCI speeds diffusion about 2.7× through higher rural wages, cheaper
+machinery and channel 3. The 1965 mechanised fringe is export-led, since mechanising for the
+home market alone does not yet pay. Diffusion is slow because the baseline has almost no wage
+growth (§2.3). It cannot approach the mid-1980s tiller stock until the model has a growth
+engine.
+
+*Side effects.* (i) Farm employment falls from 25% to 11% (data ~59%). Exports had been
+sustaining farm output, and food imports supply 58% of domestic food spending. Protecting food
+imports, as Korea's grain import controls did, is the natural next lever: doubling τ̃_Agri
+cuts the food import share to 13% and raises farm employment to 23%. The 1965 calibration
+would then need re-solving. (ii) Exports remain 73% of GDP, now driven by services and
+manufacturing; their foreign demand needs the same treatment. The durable fix for
+agriculture is still §3.4: competitive farms on observed land with a farm-size threshold.
 
 ### 2.5 Smaller specification issues that bite once the model grows and gets geography
 

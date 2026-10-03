@@ -19,8 +19,9 @@ _Last updated: 2026-07-06 (branch `claude/model-review-md-jjiaa2`)._
 > choice, separate export demand elasticity `sigma_x`, exact PIGL equivalent income for
 > migration and welfare (`expected_utility`), an error for infeasible surplus targets, and
 > `accounting.py` (employment in workers, value added, double-deflated real GDP). The +0.127
-> → +0.057 claim was checked on `cdafe29`. The 1985 heavy-manufacturing effect is now +0.095
-> on the gross-output share (+0.083 value added, +0.089 employment). `fresh_look.md` is
+> → +0.057 claim was checked on `cdafe29`. The 1985 heavy-manufacturing effect is now +0.103
+> on the gross-output share (+0.088 value added, +0.092 employment), after the nested choice
+> and the agricultural recalibration (traditional farming 0.97 of farm output in 1965). `fresh_look.md` is
 > revised: an identification caveat on the inversion, "Matsuyama in space" restated as a
 > model-generated prediction, separate access measures, and an agriculture-first build order.
 
@@ -57,7 +58,8 @@ closure (see the trade-closure item below). With a determinate closure the effec
 guess-invariant. It had no foreign transfer and leaked land rents and fixed costs, which left
 an implied surplus of ~27% of gross output. So the accounting fixes lowered the effect by about
 0.02; the rest of the drop to +0.057 was the indeterminate closure's selection. With the nested
-entry/adoption/export choice (2026-10-03) the effect is **+0.095**.
+entry/adoption/export choice (2026-10-03) the effect is **+0.095**; after the agricultural
+recalibration it is **+0.103**.
 
 ---
 
@@ -75,9 +77,12 @@ These are modeling choices currently set to a default and flagged inline as
   foreign account. Tested for guess invariance. See `docs/fresh_look.md` §2.1.
 - ~~**Cutoff ordering (§2.2).**~~ **Resolved 2026-10-03** by (b), the nested discrete
   choice (`trade.nested_cutoffs`): exporters and adopters are active firms, and agricultural
-  exporters are adopters. **Still open:** at the calibrated F̆ and F̃ all three agricultural
-  cutoffs coincide, so every active farm mechanises and exports. An interior adoption margin
-  needs recalibration or the competitive-agriculture block.
+  exporters are adopters. The resulting corner (every active farm mechanised and exported)
+  was removed by recalibration: `xi = 1.2`, fixed costs in labour units, and `Dtilde_Agri`
+  and `Fbreve_Agri` set by `scripts/calibrate_agriculture.py` to a 1965 traditional share of
+  0.97 and 1% farm exports. **Still open:** farm employment is 11% (food imports are 58% of food
+  spending); food import protection (τ̃_Agri) is the next lever, and services/manufacturing
+  foreign demand still makes exports 73% of GDP.
 - **Numeraire (§1.5).** Foreign heavy-mfg price ≡ 1. Alternative: fix aggregate income.
 - **Ownership (§1.1/§3.4).** Local land + nationally-pooled wage-proportional profits.
   Incidence work may want *local* profit retention; add as a robustness switch.
@@ -90,8 +95,8 @@ These are modeling choices currently set to a default and flagged inline as
 - **Transfer use.** The foreign transfer financing a deficit is consumed. Once capital
   enters, it belongs in the investment identity.
 - **Export demand elasticity.** `sigma_x` exists (default `sigma`) but is not yet calibrated.
-  The headline depends on it heavily: the 1985 heavy-mfg gross-output effect is +0.026 /
-  +0.095 / +0.133 at `sigma_x` = 2 / 4 / 6.
+  The headline depends on it heavily: the 1985 heavy-mfg gross-output effect is +0.021 /
+  +0.103 / +0.137 at `sigma_x` = 2 / 4 / 6.
 
 ---
 

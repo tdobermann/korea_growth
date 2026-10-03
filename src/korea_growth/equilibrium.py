@@ -100,9 +100,7 @@ def compute_implied_static(
     R_tilde = np.zeros((N, J), dtype=float)
     gross_output = np.zeros((N, J), dtype=float)
 
-    num_firms = np.zeros((N, J), dtype=float)
-    num_exporters = np.zeros((N, J), dtype=float)
-    num_adopters = np.zeros((N, J), dtype=float)
+    fixed_bill = np.zeros((N, J), dtype=float)  # fixed costs paid, numeraire units
 
     for j in range(J):
         st = compute_sector_state(
@@ -126,9 +124,7 @@ def compute_implied_static(
         R_tilde[:, j] = st.R_tilde
         gross_output[:, j] = st.gross_output
 
-        num_firms[:, j] = st.num_firms
-        num_exporters[:, j] = st.num_exporters
-        num_adopters[:, j] = st.num_adopters
+        fixed_bill[:, j] = st.fixed_cost_bill
 
     # ------------------------------------------------------------
     # 2) True factor cost (subsidy accounting; model_review.md 1.3)
@@ -277,12 +273,7 @@ def compute_implied_static(
             labor_payment += (1.0 - beta_t[:, j]) * gamma_t[:, j] * tfc_total[:, j]
             land_payment += beta_t[:, j] * gamma_t[:, j] * tfc_total[:, j]
 
-    F_t = exog.F[t, :, :]
-    Ftilde_t = exog.Ftilde[t, :, :]
-    Fbreve_t = exog.Fbreve[t, :, :]
-    phi_fixed = np.sum(
-        num_firms * F_t + num_exporters * Ftilde_t + num_adopters * Fbreve_t, axis=1
-    )  # (N,) regional fixed-cost labor bill
+    phi_fixed = np.sum(fixed_bill, axis=1)  # (N,) regional fixed-cost labor bill
     labor_payment += phi_fixed
 
     L_safe = np.maximum(L, eps)
@@ -300,7 +291,7 @@ def compute_implied_static(
     # Operating profit is Y/sigma; fixed costs are netted here and re-appear as labor
     # income above, so they are a transfer rather than a leak. Profits (hence pibar) may be
     # negative (model_review.md 2.4).
-    profit = (1.0 / sigma) * gross_output - num_firms * F_t - num_exporters * Ftilde_t - num_adopters * Fbreve_t
+    profit = (1.0 / sigma) * gross_output - fixed_bill
     total_profit = float(np.sum(profit))
     pibar_implied = total_profit / wage_bill
 

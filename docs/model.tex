@@ -392,11 +392,28 @@ producers domestically. Two coherent resolutions:
 Resolution (2) is now implemented as the nested choice \eqref{eq:nested}. (1) was not
 enough: at the calibrated parameters the pairwise thresholds satisfied
 $\tilde\phi<\breve\phi<\bar\phi$ everywhere.
-% [REVIEW FLAG \S2.2] RESOLVED by the nested choice. Calibration consequence: at the
-% current parameters all three agricultural cutoffs coincide (every active farm mechanises
-% and exports), so the traditional technology still has zero output share. Getting an interior
-% adoption margin is a recalibration of Fbreve and Ftilde (or the competitive-agriculture
-% block of the fresh-look memo), not a code change.
+% [REVIEW FLAG \S2.2] RESOLVED by the nested choice. Under the earlier calibration
+% (xi=1.5, Dtilde_Agri=0.5) all three agricultural cutoffs coincided and the traditional
+% technology had zero output share. The policy calibration now sets xi=1.2, fixed costs in
+% labour units, and calibrates Dtilde_Agri and Fbreve_Agri to a 1965 traditional share of
+% 0.97 and farm exports of 1% of farm output (scripts/calibrate_agriculture.py).
+
+\paragraph{When is the traditional margin interior?} With options ordered as above, a
+traditional segment exists iff the marginal entrant prefers the traditional option to
+mechanising and to mechanised exporting:
+\begin{equation}
+  \frac{\breve F}{F} > \Delta_{oj},
+  \qquad
+  \frac{\breve F+\tilde F}{F} > \Delta_{oj}+\frac{a^{X}_{oj}}{a^{T}_{oj}},
+  \qquad
+  \Delta_{oj}\equiv\Bigl(\xi\,\frac{c_{oj}}{\breve c_{oj}}\Bigr)^{\sigma-1}-1 .
+  \label{eq:interior}
+\end{equation}
+$\Delta$ is the proportional variable-profit gain from mechanising. It rises with
+$w/P_{\mathrm{HeavyMnf}}$ because the mechanised technology substitutes machinery for
+labour, which is the induced-innovation channel. With $\xi$ close to the range of
+$\breve c/c$, adoption turns on as wages rise and machinery gets cheaper, rather than being
+universal from the start.
 
 \subsection{Productivity aggregates}
 An adopter with idiosyncratic draw $\phi$ produces with effective productivity
@@ -931,6 +948,10 @@ minimum --- items 1--8 --- has landed:
       (\texttt{preferences.equivalent\_income}, \texttt{expected\_utility}; report \S2.3).
 \item \emph{Infeasible surplus targets raise an error} instead of flooring the transfer scale
       (report item 1.3.3).
+\item \emph{Fixed costs in labour units} (\texttt{ModelParameters.fixed\_costs\_in\_labor}):
+      $F,\breve F,\tilde F$ are labour requirements, and the cost is $F\,w_o$, paid to local
+      labour. Otherwise entry, exporting and mechanisation get mechanically cheaper in real
+      terms as wages grow. The policy calibration uses labour units.
 \item \emph{Reporting} (\texttt{accounting.py}): employment is counted in workers,
       (variable $+$ fixed-cost labour payments)$/w_o$, and sums to population. Value added is
       gross output less intermediates. Real GDP is a chained Fisher double-deflated index, with

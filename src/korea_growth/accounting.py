@@ -76,11 +76,7 @@ def sector_accounts(inputs: ModelInputs, t: int, L_prev: np.ndarray, eq) -> Sect
             tfc = tfc_scale * st.gross_output
             inter[:, j, :] = tfc[:, None] * exog.gamma_io[t, :, j, :]
             lab_var[:, j] = (1.0 - exog.beta[t, :, j]) * exog.gamma[t, :, j] * tfc
-        lab_fix[:, j] = (
-            st.num_firms * exog.F[t, :, j]
-            + st.num_exporters * exog.Ftilde[t, :, j]
-            + st.num_adopters * exog.Fbreve[t, :, j]
-        )
+        lab_fix[:, j] = st.fixed_cost_bill
         with np.errstate(divide="ignore"):
             ppi[:, j] = np.power(st.B_domestic, 1.0 / (1.0 - sigma))
 

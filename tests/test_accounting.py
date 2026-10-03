@@ -263,6 +263,28 @@ def test_sector_accounts_add_up(toy_solution):
         assert acc.value_added.sum() == pytest.approx(agg["GDP"], rel=1e-10)
 
 
+def test_accounts_add_up_with_labor_unit_fixed_costs():
+    # The policy baseline states fixed costs as labour requirements (cost = F * w).
+    inputs = build_baseline_inputs()
+    assert inputs.params.fixed_costs_in_labor
+    L0 = inputs.exog.L0
+    eq = solve_static_equilibrium(
+        inputs=inputs, t=0, L_prev=L0,
+        options=SolverOptions(max_iter=20000, tol=1e-11, damping=0.25, verbose=False),
+    )
+    agg = aggregate_accounting(inputs, 0, L0, eq)
+    acc = sector_accounts(inputs, 0, L0, eq)
+    assert abs(agg["income_minus_expenditure"]) < 1e-8
+    assert abs(agg["resource_residual"]) < 1e-8
+    np.testing.assert_allclose(acc.employment.sum(axis=1), eq.L, rtol=1e-8)
+    for j in range(inputs.dims.J):
+        st = compute_sector_state(
+            t=0, j=j, dims=inputs.dims, params=inputs.params, exog=inputs.exog,
+            L_prev=L0, w=eq.w, r=eq.r, P=eq.P, E=eq.E,
+        )
+        np.testing.assert_allclose(st.F_cost, inputs.exog.F[0, :, j] * eq.w)
+
+
 def test_infeasible_surplus_target_raises():
     assert _transfer_scale(-0.5, 1.0, 0, 1e-14) == pytest.approx(0.5)
     with pytest.raises(ValueError, match="Infeasible"):

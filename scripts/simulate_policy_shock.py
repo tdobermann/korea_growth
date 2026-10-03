@@ -93,6 +93,21 @@ IMPORT_ACCESS_EXPOSURE = np.array([0.25, 0.50, 0.45, 0.30, 0.10], dtype=float)
 BASELINE_HEAVY_MNF_FIRM_MASS = np.array([2.0, 2.1, 2.2, 2.3, 2.4, 2.5], dtype=float)
 BASELINE_HEAVY_MNF_EXPORT_DEMAND = np.array([0.48, 0.58, 0.72, 0.88, 1.00, 1.10], dtype=float)
 
+# Agricultural margin (docs/fresh_look.md 2.4). Mechanisation is mainly labour-saving: xi
+# is set near the 1965-85 range of the mechanised/traditional unit-cost ratio (C_breve/C ~
+# 1.13-1.30), so adoption becomes profitable as wages rise and HCI machinery gets cheaper
+# rather than being a 50% productivity gift. Foreign demand for farm output and the adoption
+# fixed cost are calibrated by scripts/calibrate_agriculture.py to the 1965 targets below.
+XI_MECHANISATION = 1.2
+AG_TARGET_TRADITIONAL_SHARE_1965 = 0.97  # power tillers per farm household ~0 in 1965
+AG_TARGET_EXPORT_SHARE_1965 = 0.01  # farm exports / farm output; placeholder, verify
+AG_FOREIGN_DEMAND = 0.22025  # calibrated Dtilde for Agri
+AG_ADOPTION_FIXED_COST = 4.28056  # calibrated Fbreve for Agri, labour units
+# Fixed costs are labour requirements (params.fixed_costs_in_labor). The non-agricultural
+# values were set in numeraire units; dividing by the 1965 mean wage of that calibration keeps
+# their 1965 level and lets them grow with wages afterwards.
+FIXED_COST_REF_WAGE = 0.2547
+
 AG_PRODUCTIVITY_TARGET_SHARE = 0.30
 AG_LABOUR_INTENSITY_TARGET_SHARE = 0.035
 AG_ADOPTION_COST_DECLINE = 0.14
@@ -103,8 +118,15 @@ EXPORT_DEMAND_BOOST = 0.02
 HEAVY_MNF_FIRM_MASS_BOOST = 0.04
 
 
-def build_baseline_inputs() -> ModelInputs:
+def build_baseline_inputs(
+    *,
+    ag_foreign_demand: float = AG_FOREIGN_DEMAND,
+    ag_adoption_fixed_cost: float = AG_ADOPTION_FIXED_COST,
+) -> ModelInputs:
     """Construct a 5-region, 3-sector, 6-period baseline economy.
+
+    ``ag_foreign_demand`` and ``ag_adoption_fixed_cost`` default to the values calibrated by
+    ``scripts/calibrate_agriculture.py``; the overrides exist for that calibration.
 
     Regions are ordered by proximity to industrial parks:
       Seoul (capital), Busan (port city), Changwon (IP host),
@@ -123,7 +145,7 @@ def build_baseline_inputs() -> ModelInputs:
     # sigma=4: CES elasticity (standard in Melitz-type models)
     # theta=5: Pareto shape (governs firm heterogeneity)
     # kappa=8: Pareto upper bound
-    # xi=1.5: cost advantage of mechanised agriculture
+    # xi=1.2: productivity gain of mechanised agriculture (see XI_MECHANISATION)
     # rho_j: agglomeration elasticity by sector
     #   - Agri: 0.03 (low agglomeration, paper shows rural dispersion)
     #   - HeavyMnf: 0.12 (strong agglomeration, paper Fig 3 shows concentration)
@@ -140,13 +162,14 @@ def build_baseline_inputs() -> ModelInputs:
         sigma=4.0,
         theta=5.0,
         kappa=8.0,
-        xi=1.5,
+        xi=XI_MECHANISATION,
         rho_j=np.array([0.03, 0.12, 0.06]),
         iota=-0.02,
         eta=0.2,
         nu=5.0,
         alpha_j=np.array([0.35, 0.25, 0.40]),
         v_j=np.array([0.03, -0.01, -0.02]),
+        fixed_costs_in_labor=True,
     )
 
     T, N, J = dims.T, dims.N, dims.J
@@ -231,14 +254,14 @@ def build_baseline_inputs() -> ModelInputs:
     safe_gammabreve = np.maximum(gammabreve[..., 0], 1e-10)
     betabreve[..., 0] = (gamma[..., 0] * beta[..., 0]) / safe_gammabreve
 
-    # --- Fixed costs ---
-    F = np.full((T, N, J), 0.20)
+    # --- Fixed costs (labour requirements) ---
+    F = np.full((T, N, J), 0.20) / FIXED_COST_REF_WAGE
     F[:, :, 1] *= 0.52
-    # Agriculture adoption cost: Fbreve
+    # Agriculture adoption cost: Fbreve (calibrated)
     Fbreve = np.zeros((T, N, J))
-    Fbreve[..., 0] = 0.05
+    Fbreve[..., 0] = ag_adoption_fixed_cost
     # Export fixed cost
-    Ftilde = np.full((T, N, J), 0.05)
+    Ftilde = np.full((T, N, J), 0.05) / FIXED_COST_REF_WAGE
 
     # --- Input-cost subsidies ---
     # Baseline: small agricultural subsidy only
@@ -247,6 +270,8 @@ def build_baseline_inputs() -> ModelInputs:
 
     # --- Foreign demand and prices ---
     Dtilde = np.full((T, J), 0.50)
+    # Farm exports were small: Agri foreign demand is calibrated (exporters mechanise).
+    Dtilde[:, 0] = ag_foreign_demand
     # HeavyMnf has meaningful foreign demand before the HCI push.
     Dtilde[:, 1] = BASELINE_HEAVY_MNF_EXPORT_DEMAND
     ptilde = np.ones((T, J))
