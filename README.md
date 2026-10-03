@@ -48,6 +48,10 @@ Relative to the earlier toy policy exercise, the repository now includes:
 - [scripts/solve_toy.py](/c:/korea_growth/scripts/solve_toy.py): minimal smoke-test model
 - [scripts/simulate_policy_shock.py](/c:/korea_growth/scripts/simulate_policy_shock.py):
   baseline and HCI policy simulation
+- [scripts/macro_scorecard.py](scripts/macro_scorecard.py): macro moments of the simulated
+  economy against approximate Korean data, plus an initial-guess invariance check
+- [docs/fresh_look.md](docs/fresh_look.md): diagnostics and a proposed re-architecture for
+  the macro story, including how the township panel enters the model
 - [docs/model.tex](/c:/korea_growth/docs/model.tex): formal background write-up of the
   implemented model
 
@@ -116,23 +120,31 @@ extended, or matched to richer data.
 With the current `scripts/simulate_policy_shock.py` calibration, the 1985 policy-minus-baseline
 comparison is:
 
-- aggregate agriculture share: `-0.0413`
-- aggregate heavy-manufacturing share: `+0.0570`
-- aggregate services share: `-0.0157`
-- Changwon wage: `+0.1436`
-- Changwon manufacturing share: `+0.2293`
-- Seoul population share: `-0.0258`
-- Rural population share: `+0.0328`
-- Rural income per capita: `+0.1986`
-- Rural services share: `+0.1064`
-- Daegu services share: `+0.1057`
+- aggregate agriculture share: `-0.0448`
+- aggregate heavy-manufacturing share: `+0.1043`
+- aggregate services share: `-0.0596`
+- Changwon wage: `+0.1200`
+- Changwon manufacturing share: `+0.2867`
+- Seoul population share: `-0.0292`
+- Rural population share: `+0.0247`
+- Rural income per capita: `+0.1705`
+- Rural services share: `+0.0941`
+- Daegu services share: `+0.0814`
 
 These are directional diagnostics from the current calibration, not final estimated moments.
 They reflect the corrected accounting described in [docs/model.tex](docs/model.tex) (land
 rents rebated to residents, consistent subsidy accounting, fixed costs paid in labor,
-infrastructure buying goods, and a net-foreign-transfer trade closure); the aggregate
-heavy-manufacturing effect is now smaller than the earlier `+0.1269`, consistent with the
-review's point that the previous number over-attributed the structural shift to policy.
+infrastructure buying goods) and an exogenous trade balance (`nx_gdp`, default balanced
+trade). An earlier closure set the foreign transfer to `IM - EX` at the current guess, which
+left the equilibrium indeterminate: results depended on the solver's initial guess, and the
+previously reported `+0.0570` heavy-manufacturing effect was one point on that continuum
+(see [docs/fresh_look.md](docs/fresh_look.md), section 2.1).
+
+`python scripts/macro_scorecard.py` compares the simulated economy with Korea's macro path.
+The calibration is far from it: exports are about 95% of GDP, agriculture is about 24% of
+employment in 1965, baseline real GDP per capita grows about 13% over 1965-85, and no farm
+output uses the traditional technology. [docs/fresh_look.md](docs/fresh_look.md) diagnoses
+this and proposes a re-architecture around the macro story and the township panel.
 
 ## Theory Primer
 
@@ -154,7 +166,8 @@ Create a `korea_growth.types.ModelInputs` object containing:
 - parameters: `sigma`, `theta`, `kappa`, `xi`, `rho_j`, `iota`, `eta`, `nu`,
   `alpha_j`, `v_j`
 - exogenous paths: `A`, `F`, `Fbreve`, `Ftilde`, `s`, `tau`, `tautilde`,
-  `delta`, `Vbar`, `H`, `Dtilde`, `ptilde`, `M`, and the technology-share arrays
+  `delta`, `Vbar`, `H`, `Dtilde`, `ptilde`, `M`, the technology-share arrays, and optionally
+  `nx_gdp` (net exports as a share of GDP; default balanced trade)
 
 Then solve:
 
@@ -171,6 +184,8 @@ For a single period, use `solve_static_equilibrium`.
 The current tests cover:
 
 - convergence of the toy model
+- Walras's law, the resource constraint, and the government budget at the solution
+- invariance of the equilibrium to the solver's initial guess, and an exogenous trade balance
 - directional policy effects in the HCI simulation
 - robustness of the production block when input-output matrices contain zero shares
 

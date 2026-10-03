@@ -54,6 +54,8 @@ def validate_shapes(inputs: ModelInputs) -> None:
     assert_shape("delta", ex.delta, (T, N, N))
     assert_shape("H", ex.H, (T, N))
     assert_shape("tax_spending_on_building_H_and_roads", ex.tax_spending_on_building_H_and_roads, (T,))
+    if ex.nx_gdp is not None:
+        assert_shape("nx_gdp", ex.nx_gdp, (T,))
 
 
 def validate_param_restrictions(inputs: ModelInputs, tol: float = 1e-10) -> None:
@@ -139,6 +141,9 @@ def validate_param_restrictions(inputs: ModelInputs, tol: float = 1e-10) -> None
 
     if not (np.min(ex.s) >= 0 and np.max(ex.s) < 1):
         errors.append("s must be in [0,1)")
+
+    if ex.nx_gdp is not None and not np.all(np.abs(ex.nx_gdp) < 1):
+        errors.append("nx_gdp must lie in (-1,1)")
 
     if errors:
         raise ModelInputError("; ".join(errors))

@@ -133,6 +133,10 @@ class ModelExogenousPaths:
     # Exogenous government spending (in wage units / numeraire)
     tax_spending_on_building_H_and_roads: Array  # (T,)
 
+    # Exogenous net exports (EX - IM) as a share of GDP. This pins the trade balance, and with
+    # it the level of domestic prices relative to the foreign numeraire. None = balanced trade.
+    nx_gdp: Optional[Array] = None  # (T,)
+
 
 @dataclass(frozen=True)
 class ModelInputs:

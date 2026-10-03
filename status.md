@@ -6,6 +6,14 @@ modeling choices that still need a decision, and a sequenced plan for the remain
 
 _Last updated: 2026-07-06 (branch `claude/model-review-md-jjiaa2`)._
 
+> **2026-09-29 update.** [`docs/fresh_look.md`](docs/fresh_look.md) re-evaluates the model
+> against the macro goal (how Korea escaped poverty, 1960–90) and the township panel being
+> digitised. Its findings supersede parts of this roadmap. The trade closure was
+> indeterminate and is now fixed (§2 below). The calibrated economy misses Korea's 1965 macro
+> margins, has no growth engine, and has no traditional agriculture. It proposes re-sequencing
+> Phases 2–4 around "baseline = history": annual inversion, gravity with external economies in
+> place of Melitz, occupation choice, farm-size-based agriculture, and capital and schooling.
+
 ---
 
 ## 1. Done
@@ -32,8 +40,10 @@ All 8 "theory-consistent minimum" items are implemented and tested:
 | 8 | PIGL restrictions + Walras/ordering checks | §1, §2.2, §7.3 | `checks.py`, `tests/test_accounting.py` |
 
 Walras / resource / government identities hold to ~1e-13 at the solution; toy and policy
-sims converge; all tests pass. The corrected accounting also lowered the 1985
-heavy-manufacturing effect from **+0.127 → +0.057** (consistent with review §4.6).
+sims converge; all tests pass. The corrected accounting was reported to lower the 1985
+heavy-manufacturing effect from **+0.127 → +0.057**. That number came from an indeterminate
+closure (see the trade-closure item below). With a determinate closure the effect is
+**+0.104**.
 
 ---
 
@@ -42,11 +52,13 @@ heavy-manufacturing effect from **+0.127 → +0.057** (consistent with review §
 These are modeling choices currently set to a default and flagged inline as
 `% [REVIEW FLAG ...]` in `model.tex`. Revisit before building on them.
 
-- **Trade closure (§1.5).** Net position `T = IM − EX` is carried into income *proportional
-  to income*, so `NX*` is an endogenous residual rather than pinned to 0. Truly imposing
-  `NX* = 0` needs an added equilibrating instrument (e.g. an aggregate transfer/relative
-  price that clears the foreign account). Decide whether the residual closure is acceptable
-  or the instrument is worth adding.
+- ~~**Trade closure (§1.5).**~~ **Resolved 2026-09-29.** Carrying `T = IM − EX` into income
+  was not a residual closure but an indeterminate one. Income = expenditure plus goods-market
+  clearing already imply `T = IM − EX`, so the external-balance condition was lost. Solutions
+  then depended on the initial guess: wages differed by 65% and trade deficits ranged from 37%
+  to 67% of absorption. No extra instrument is needed: `T = −NX*` with
+  `NX* = nx_gdp_t · GDP` exogenous (default 0), and the domestic price level clears the
+  foreign account. Tested for guess invariance. See `docs/fresh_look.md` §2.1.
 - **Cutoff ordering (§2.2).** `φ̄ ≤ φ̆ ≤ φ̃` is a *diagnostic*, and the toy calibration
   violates it (~1.1). Choose between (a) primitive parameter restrictions that guarantee it
   (then enforce in `checks.py`), or (b) solving the joint adoption–export discrete choice.
