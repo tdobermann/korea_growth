@@ -122,30 +122,36 @@ extended, or matched to richer data.
 With the current `scripts/simulate_policy_shock.py` calibration, the 1985 policy-minus-baseline
 comparison is:
 
-- aggregate agriculture share: `-0.0448`
-- aggregate heavy-manufacturing share: `+0.1043`
-- aggregate services share: `-0.0596`
-- Changwon wage: `+0.1200`
-- Changwon manufacturing share: `+0.2867`
-- Seoul population share: `-0.0292`
-- Rural population share: `+0.0247`
-- Rural income per capita: `+0.1705`
-- Rural services share: `+0.0941`
-- Daegu services share: `+0.0814`
+| national sector share | gross output | value added | employment (workers) |
+|---|---|---|---|
+| agriculture | `-0.0403` | `-0.0270` | `-0.0234` |
+| heavy manufacturing | `+0.0952` | `+0.0826` | `+0.0893` |
+| services | `-0.0548` | `-0.0557` | `-0.0659` |
+
+- Changwon wage: `+0.1217`
+- Changwon manufacturing (gross-output) share: `+0.2740`
+- Seoul population share: `-0.0296`
+- Rural population share: `+0.0268`
+- Rural income per capita: `+0.1741`
+- Rural services (gross-output) share: `+0.1104`
+- Daegu services (gross-output) share: `+0.0934`
 
 These are directional diagnostics from the current calibration, not final estimated moments.
 They reflect the corrected accounting described in [docs/model.tex](docs/model.tex) (land
 rents rebated to residents, consistent subsidy accounting, fixed costs paid in labor,
-infrastructure buying goods) and an exogenous trade balance (`nx_gdp`, default balanced
-trade). An earlier closure set the foreign transfer to `IM - EX` at the current guess, which
+infrastructure buying goods), an exogenous trade balance (`nx_gdp`, default balanced
+trade), and a nested entry/adoption/export choice (exporters and adopters are active firms).
+The nested choice moved the gross-output heavy-manufacturing effect from `+0.1043` to
+`+0.0952`. An earlier closure set the foreign transfer to `IM - EX` at the current guess, which
 left the equilibrium indeterminate: results depended on the solver's initial guess, and the
 previously reported `+0.0570` heavy-manufacturing effect was one point on that continuum
 (see [docs/fresh_look.md](docs/fresh_look.md), section 2.1).
 
 `python scripts/macro_scorecard.py` compares the simulated economy with Korea's macro path.
-The calibration is far from it: exports are about 95% of GDP, agriculture is about 24% of
-employment in 1965, baseline real GDP per capita grows about 13% over 1965-85, and no farm
-output uses the traditional technology. [docs/fresh_look.md](docs/fresh_look.md) diagnoses
+The calibration is far from it: exports are about 82% of GDP, agriculture is about 25% of
+employment (in workers) in 1965, baseline real GDP per capita (double-deflated) grows about
+16% over 1965-85, and no farm output uses the traditional technology: at the calibrated fixed
+costs every active farm mechanises and exports. [docs/fresh_look.md](docs/fresh_look.md) diagnoses
 this and proposes a re-architecture around the macro story and the township panel.
 
 ## Theory Primer
@@ -166,7 +172,8 @@ Create a `korea_growth.types.ModelInputs` object containing:
 
 - dimensions: time labels, region names, sector names
 - parameters: `sigma`, `theta`, `kappa`, `xi`, `rho_j`, `iota`, `eta`, `nu`,
-  `alpha_j`, `v_j`
+  `alpha_j`, `v_j`, and optionally `sigma_x` (aggregate elasticity of foreign demand for
+  exports; default `sigma`)
 - exogenous paths: `A`, `F`, `Fbreve`, `Ftilde`, `s`, `tau`, `tautilde`,
   `delta`, `Vbar`, `H`, `Dtilde`, `ptilde`, `M`, the technology-share arrays, and optionally
   `nx_gdp` (net exports as a share of GDP; default balanced trade)
@@ -188,6 +195,10 @@ The current tests cover:
 - convergence of the toy model
 - Walras's law, the resource constraint, and the government budget at the solution
 - invariance of the equilibrium to the solver's initial guess, and an exogenous trade balance
+- the nested entry/adoption/export choice (against brute force, and exporters/adopters as
+  subsets of active firms) and the separate export demand elasticity
+- the exact PIGL equivalent income, and agreement of migration and welfare with indirect utility
+- sector accounts: employment in workers sums to population, value added sums to GDP
 - directional policy effects in the HCI simulation
 - robustness of the production block when input-output matrices contain zero shares
 

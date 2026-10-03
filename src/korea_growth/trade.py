@@ -3,7 +3,8 @@
 This module provides a vectorized implementation of the expensive parts of the
 prototype `baseline.py`:
 
-- Entry/export/adoption cutoffs (phi-bar, phi-tilde, phi-breve)
+- Entry/export/adoption cutoffs (phi-bar, phi-tilde, phi-breve), from a nested discrete
+  choice (exporters and adopters are active firms)
 - CES-relevant productivity aggregates (Zbar, Ztilde, Zbreve)
 - Domestic price indices P_{d,j}
 - Domestic revenues and export revenues
@@ -18,6 +19,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
+from scipy.optimize import brentq
 
 from .distributions import integral_phi_sigma_minus_1, pareto_survival
 from .production import agglomeration, unit_cost_bundle
@@ -61,6 +63,42 @@ class SectorState:
 
     # Optional diagnostics
     S_o: np.ndarray  # (N,) demand shifter used in cutoffs and domestic revenues
+    B_domestic: np.ndarray  # (N,) sum over domestic varieties of factory-gate p^(1-sigma)
+    D_export: float  # effective foreign demand shifter (= Dtilde when sigma_x = sigma)
+
+
+def nested_cutoffs(slopes: np.ndarray, costs: np.ndarray, *, sigma: float) -> np.ndarray:
+    """Productivity thresholds of a nested discrete choice with profits linear in phi^(sigma-1).
+
+    Option k (k = 0..K, row k) yields profit ``slopes[k] * x - costs[k]`` with
+    x = phi^(sigma-1). Row 0 is exit (zero slope and cost); slopes and costs are ordered so
+    that higher options are weakly more expensive. The firm picks the upper envelope, whose
+    option index is nondecreasing in x, so "choose an option >= k" is the set x >= X_k with
+
+        X_k = min_{k' >= k} max_{i < k'} (costs[k'] - costs[i]) / (slopes[k'] - slopes[i]),
+
+    the crossing being +inf when option k' never beats i. Returns phi_k =
+    max(1, X_k^(1/(sigma-1))) for k = 0..K (row 0 is 1), shape (K+1, N).
+    """
+
+    slopes = np.asarray(slopes, dtype=float)
+    costs = np.asarray(costs, dtype=float)
+    K1 = slopes.shape[0]
+    lo = np.zeros_like(slopes)
+    for k in range(1, K1):
+        cross = np.full(slopes.shape[1:], -np.inf)
+        for i in range(k):
+            ds = slopes[k] - slopes[i]
+            dc = costs[k] - costs[i]
+            with np.errstate(divide="ignore", invalid="ignore"):
+                c_ik = np.where(ds > 0.0, dc / np.where(ds > 0.0, ds, 1.0), np.inf)
+            cross = np.maximum(cross, c_ik)
+        lo[k] = cross
+    X = np.minimum.accumulate(lo[::-1], axis=0)[::-1]
+    X[0] = 0.0
+    with np.errstate(over="ignore"):
+        phi = np.power(np.maximum(X, 0.0), 1.0 / (sigma - 1.0))
+    return np.maximum(1.0, phi)
 
 
 def compute_sector_state(
@@ -141,58 +179,91 @@ def compute_sector_state(
     S_o = tau_pow @ demand_dest
     S_o = np.maximum(S_o, eps)
 
-    # -------- Entry cutoff phi_bar --------
-    term_bar = (
-        (sigma / (sigma - 1.0))
-        * (1.0 - s_o)
-        / (A_o * f_o)
-        * np.power(sigma, 1.0 / (sigma - 1.0))
-        * C_o
-        * np.power(F_o / S_o, 1.0 / (sigma - 1.0))
-    )
-    phi_bar = np.maximum(1.0, term_bar)
-
-    # -------- Adoption cutoff phi_breve (agriculture only) --------
+    # -------- Nested entry / adoption / export choice --------
+    # Variable profit of a firm with draw phi is linear in x = phi^(sigma-1) under every
+    # option, so each option is a line (slope a, fixed cost c) in x, and a firm picks the
+    # upper envelope. Options are nested: a firm must be active (pay F) to adopt or export,
+    # and in agriculture exporters use the mechanised technology (the xi and CBREVE terms in
+    # the export block), so exporting also requires adoption (pay Fbreve). The earlier code
+    # computed each cutoff from its own pairwise zero-profit condition, so that whenever
+    # phi_tilde or phi_breve fell below phi_bar, firms exported or adopted without entering
+    # (docs/fresh_look.md 2.4; docs/review_fresh_look.md 1.3 item 6).
+    K0 = np.power((sigma / (sigma - 1.0)) * (1.0 - s_o), 1.0 - sigma)  # (N,)
+    a_trad = K0 * np.power(A_o * f_o / C_o, sigma - 1.0) * S_o / sigma
     if is_agri:
-        # benefit term = ((xi*C/CBREVE)^(sigma-1) - 1)^(1/(1-sigma))
-        ratio = xi * C_o / CBREVE_o
-        benefit = np.power(ratio, sigma - 1.0) - 1.0
-        # If benefit<=0 adoption is never profitable; set benefit_term=+inf => phi_breve huge
-        benefit_term = np.where(benefit > 0.0, np.power(benefit, 1.0 / (1.0 - sigma)), np.inf)
+        a_mech = K0 * np.power(A_o * f_o * xi / CBREVE_o, sigma - 1.0) * S_o / sigma
+        cost_export = CBREVE_o
+        prod_export = xi
+    else:
+        a_mech = None
+        cost_export = C_o
+        prod_export = 1.0
+    # Export variable profit per unit of foreign demand shifter.
+    a_export_unit = (
+        K0 * np.power(A_o * f_o * prod_export / (tautilde_o * cost_export), sigma - 1.0) / sigma
+    )
+    # Delivered-price CES aggregate of export varieties per unit of Ztilde^(sigma-1).
+    base_export_unit = (
+        M_j
+        * np.power((sigma / (sigma - 1.0)) * (1.0 - s_o) * tautilde_o, 1.0 - sigma)
+        * np.power(1.0 / cost_export, sigma - 1.0)
+    )
 
-        term_breve = (
-            (sigma / (sigma - 1.0))
-            * (1.0 - s_o)
-            / (A_o * f_o)
-            * np.power(sigma, 1.0 / (sigma - 1.0))
-            * C_o
-            * benefit_term
-            * np.power(Fbreve_o / S_o, 1.0 / (sigma - 1.0))
-        )
-        phi_breve = np.maximum(1.0, term_breve)
+    def choices(D_x: float):
+        a_x = a_export_unit * D_x
+        if is_agri:
+            slopes = np.stack([np.zeros(N), a_trad, a_mech, a_mech + a_x])
+            costs = np.stack([np.zeros(N), F_o, F_o + Fbreve_o, F_o + Fbreve_o + Ftilde_o])
+        else:
+            slopes = np.stack([np.zeros(N), a_trad, a_trad + a_x])
+            costs = np.stack([np.zeros(N), F_o, F_o + Ftilde_o])
+        phis = nested_cutoffs(slopes, costs, sigma=sigma)
+        phi_tilde_ = phis[-1]
+        I_tilde_ = integral_phi_sigma_minus_1(phi_tilde_, kappa, sigma=sigma, theta=theta, kappa=kappa)
+        Ztilde_ = A_o * f_o * prod_export * np.power(I_tilde_, 1.0 / (sigma - 1.0))
+        base_export_ = base_export_unit * np.power(Ztilde_, sigma - 1.0)
+        return phis, Ztilde_, base_export_
 
+    # -------- Foreign demand for exports --------
+    # Foreign buyers substitute among Korean export varieties at sigma (so markups are
+    # unchanged) and between the Korean bundle and foreign goods at sigma_x, so the aggregate
+    # export demand elasticity is sigma_x. The effective demand shifter is
+    #     D_x = Dtilde * (P^X / ptilde)^(sigma - sigma_x),
+    # with P^X the CES index of Korean delivered export prices. sigma_x = sigma (default)
+    # gives D_x = Dtilde; otherwise D_x solves a scalar fixed point.
+    sigma_x = params.sigma_x
+    if sigma_x is None or sigma_x == sigma:
+        D_x = Dtilde_j
+        phis, Ztilde, base_export = choices(D_x)
+    else:
+        def gap(u: float) -> float:
+            _, _, be = choices(float(np.exp(u)))
+            log_PX = np.log(max(float(np.sum(be)), 1e-300)) / (1.0 - sigma)
+            return u - np.log(Dtilde_j) - (sigma - sigma_x) * (log_PX - np.log(ptilde_j))
+
+        # Bracket the root in u = log D_x, widening additively with a doubling step.
+        u0 = float(np.log(Dtilde_j))
+        step = 1.0
+        lo, hi = u0 - step, u0 + step
+        g_lo, g_hi = gap(lo), gap(hi)
+        while g_lo * g_hi > 0.0:
+            step *= 2.0
+            if step > 512.0:
+                raise RuntimeError(f"export-demand fixed point not bracketed (t={t}, j={j})")
+            lo, hi = u0 - step, u0 + step
+            g_lo, g_hi = gap(lo), gap(hi)
+        D_x = float(np.exp(brentq(gap, lo, hi, xtol=1e-14, rtol=1e-14)))
+        phis, Ztilde, base_export = choices(D_x)
+
+    phi_bar = phis[1]
+    if is_agri:
+        phi_breve = phis[2]
+        phi_tilde = phis[3]
         upper_trad = np.minimum(phi_breve, kappa)
     else:
         phi_breve = None
+        phi_tilde = phis[2]
         upper_trad = kappa * np.ones(N, dtype=float)
-
-    # -------- Export cutoff phi_tilde --------
-    if is_agri:
-        # extra term for agriculture exporters: CBREVE/C/xi
-        extra = (CBREVE_o / C_o) / xi
-    else:
-        extra = 1.0
-
-    term_tilde = (
-        (sigma / (sigma - 1.0))
-        * (1.0 - s_o)
-        / (A_o * f_o)
-        * np.power(sigma, 1.0 / (sigma - 1.0))
-        * C_o
-        * np.power(Ftilde_o / (np.power(tautilde_o, 1.0 - sigma) * Dtilde_j), 1.0 / (sigma - 1.0))
-        * extra
-    )
-    phi_tilde = np.maximum(1.0, term_tilde)
 
     # -------- Productivity aggregates --------
     I_trad = integral_phi_sigma_minus_1(phi_bar, upper_trad, sigma=sigma, theta=theta, kappa=kappa)
@@ -203,14 +274,10 @@ def compute_sector_state(
         # Adopters produce with effective productivity xi*phi in ALL markets (this is the
         # premise of the adoption benefit term B). The xi factor must therefore appear in
         # the domestic mechanized aggregate exactly as it does in the export aggregate
-        # Ztilde below. (model_review.md 2.1; model.tex eq. Zbreve.)
+        # Ztilde. (model_review.md 2.1; model.tex eq. Zbreve.)
         Zbreve = A_o * f_o * xi * np.power(I_breve, 1.0 / (sigma - 1.0))
     else:
         Zbreve = None
-
-    I_tilde = integral_phi_sigma_minus_1(phi_tilde, kappa, sigma=sigma, theta=theta, kappa=kappa)
-    xi_or_1 = xi if is_agri else 1.0
-    Ztilde = A_o * f_o * xi_or_1 * np.power(I_tilde, 1.0 / (sigma - 1.0))
 
     # -------- Price index P implied --------
     common_pref = M_j * np.power((sigma / (sigma - 1.0)) * (1.0 - s_o), 1.0 - sigma)
@@ -232,23 +299,11 @@ def compute_sector_state(
     R_trad = base_trad * S_o
     R_breve = base_breve * S_o
     R_domestic_total = base_total * S_o
-
-    # Export revenue
-    if is_agri:
-        cost_export = CBREVE_o
-    else:
-        cost_export = C_o
-
-    base_export = (
-        M_j
-        * np.power((sigma / (sigma - 1.0)) * (1.0 - s_o) * tautilde_o, 1.0 - sigma)
-        * np.power(Ztilde / cost_export, sigma - 1.0)
-    )
-    R_tilde = base_export * Dtilde_j
+    R_tilde = base_export * D_x
 
     gross_output = R_domestic_total + R_tilde
 
-    # -------- Counts --------
+    # -------- Counts (nested: exporters, adopters <= active firms) --------
     num_firms = M_j * pareto_survival(phi_bar, theta=theta, kappa=kappa)
     num_exporters = M_j * pareto_survival(phi_tilde, theta=theta, kappa=kappa)
 
@@ -277,4 +332,6 @@ def compute_sector_state(
         num_exporters=num_exporters,
         num_adopters=num_adopters,
         S_o=S_o,
+        B_domestic=base_total,
+        D_export=float(D_x),
     )

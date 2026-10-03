@@ -83,6 +83,8 @@ def validate_param_restrictions(inputs: ModelInputs, tol: float = 1e-10) -> None
 
     if not (p.sigma > 1):
         errors.append("sigma must be > 1")
+    if p.sigma_x is not None and not (p.sigma_x > 0):
+        errors.append("sigma_x must be > 0")
     if not (p.kappa > 1):
         errors.append("kappa must be > 1")
     if not (p.xi > 1):
@@ -184,7 +186,9 @@ def cutoff_ordering_violation(inputs: ModelInputs, t: int, L_prev: np.ndarray, e
 
     Returns 0.0 when the ordering holds (or when there is no agriculture sector). Only
     finite cutoffs are compared (phibreve is +inf where mechanized adoption is never
-    profitable). See model_review.md 2.2 and model.tex.
+    profitable). The cutoffs now come from a nested choice (``trade.nested_cutoffs``), so the
+    ordering holds by construction; this remains as a regression guard. See model_review.md
+    2.2 and model.tex.
     """
     from .trade import compute_sector_state
 

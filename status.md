@@ -14,6 +14,16 @@ _Last updated: 2026-07-06 (branch `claude/model-review-md-jjiaa2`)._
 > Phases 2–4 around "baseline = history": annual inversion, gravity with external economies in
 > place of Melitz, occupation choice, farm-size-based agriculture, and capital and schooling.
 
+> **2026-10-03 update.** The referee report [`docs/review_fresh_look.md`](docs/review_fresh_look.md)
+> is implemented; its §8 lists what was done for each item. Code: nested entry/adoption/export
+> choice, separate export demand elasticity `sigma_x`, exact PIGL equivalent income for
+> migration and welfare (`expected_utility`), an error for infeasible surplus targets, and
+> `accounting.py` (employment in workers, value added, double-deflated real GDP). The +0.127
+> → +0.057 claim was checked on `cdafe29`. The 1985 heavy-manufacturing effect is now +0.095
+> on the gross-output share (+0.083 value added, +0.089 employment). `fresh_look.md` is
+> revised: an identification caveat on the inversion, "Matsuyama in space" restated as a
+> model-generated prediction, separate access measures, and an agriculture-first build order.
+
 ---
 
 ## 1. Done
@@ -43,7 +53,11 @@ Walras / resource / government identities hold to ~1e-13 at the solution; toy an
 sims converge; all tests pass. The corrected accounting was reported to lower the 1985
 heavy-manufacturing effect from **+0.127 → +0.057**. That number came from an indeterminate
 closure (see the trade-closure item below). With a determinate closure the effect is
-**+0.104**.
+**+0.104** (gross-output share). Checked on `cdafe29`: the old code reproduces +0.127 and is
+guess-invariant. It had no foreign transfer and leaked land rents and fixed costs, which left
+an implied surplus of ~27% of gross output. So the accounting fixes lowered the effect by about
+0.02; the rest of the drop to +0.057 was the indeterminate closure's selection. With the nested
+entry/adoption/export choice (2026-10-03) the effect is **+0.095**.
 
 ---
 
@@ -59,17 +73,25 @@ These are modeling choices currently set to a default and flagged inline as
   to 67% of absorption. No extra instrument is needed: `T = −NX*` with
   `NX* = nx_gdp_t · GDP` exogenous (default 0), and the domestic price level clears the
   foreign account. Tested for guess invariance. See `docs/fresh_look.md` §2.1.
-- **Cutoff ordering (§2.2).** `φ̄ ≤ φ̆ ≤ φ̃` is a *diagnostic*, and the toy calibration
-  violates it (~1.1). Choose between (a) primitive parameter restrictions that guarantee it
-  (then enforce in `checks.py`), or (b) solving the joint adoption–export discrete choice.
+- ~~**Cutoff ordering (§2.2).**~~ **Resolved 2026-10-03** by (b), the nested discrete
+  choice (`trade.nested_cutoffs`): exporters and adopters are active firms, and agricultural
+  exporters are adopters. **Still open:** at the calibrated F̆ and F̃ all three agricultural
+  cutoffs coincide, so every active farm mechanises and exports. An interior adoption margin
+  needs recalibration or the competitive-agriculture block.
 - **Numeraire (§1.5).** Foreign heavy-mfg price ≡ 1. Alternative: fix aggregate income.
 - **Ownership (§1.1/§3.4).** Local land + nationally-pooled wage-proportional profits.
   Incidence work may want *local* profit retention; add as a robustness switch.
 - **Infra allocation (§1.4).** `G^infra` split 50/50 heavy-mfg/services by population.
   Consider a dedicated construction sector.
-- **Welfare wiring (§3.9).** The inclusive-value formula (`model.tex` eq. `welfare`) is
-  derived but not yet *computed and reported* by the solver, and the exact PIGL money metric
-  for general `η` (vs. the log-case index now used) is still a to-derive appendix item.
+- ~~**Welfare wiring (§3.9).**~~ **Resolved 2026-10-03.** Migration and welfare both use the
+  exact PIGL equivalent income at unit reference prices (`preferences.equivalent_income`).
+  The inclusive value is computed by `preferences.expected_utility`, and a test checks that
+  its gradient equals the migration shares. Not yet reported by the policy script.
+- **Transfer use.** The foreign transfer financing a deficit is consumed. Once capital
+  enters, it belongs in the investment identity.
+- **Export demand elasticity.** `sigma_x` exists (default `sigma`) but is not yet calibrated.
+  The headline depends on it heavily: the 1985 heavy-mfg gross-output effect is +0.026 /
+  +0.095 / +0.133 at `sigma_x` = 2 / 4 / 6.
 
 ---
 

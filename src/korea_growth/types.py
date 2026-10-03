@@ -82,6 +82,12 @@ class ModelParameters:
     alpha_j: Array  # (J,)
     v_j: Array  # (J,)
 
+    # Aggregate elasticity of foreign demand for Korean exports (between the Korean export
+    # bundle and foreign goods). External balance pins the wage level through this
+    # elasticity, so it should be calibrated externally rather than tied to the domestic
+    # substitution elasticity sigma. None = sigma.
+    sigma_x: Optional[float] = None
+
 
 @dataclass(frozen=True)
 class ModelExogenousPaths:

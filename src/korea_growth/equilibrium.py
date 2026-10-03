@@ -45,6 +45,21 @@ class StaticImplied:
     aggregates: Dict[str, float]
 
 
+def _transfer_scale(transfer: float, income_base: float, t: int, eps: float) -> float:
+    """Uniform income scale 1 + T / Y_base that distributes the foreign transfer.
+
+    A surplus target larger than pre-transfer income is infeasible; raise rather than
+    floor the scale (a floor would silently miss the NX target).
+    """
+    scale = 1.0 + transfer / max(income_base, eps)
+    if not scale > 0.0:
+        raise ValueError(
+            f"Infeasible trade-balance target at t={t}: the net-export surplus "
+            f"{-transfer:.4g} exceeds pre-transfer household income {income_base:.4g}."
+        )
+    return scale
+
+
 def compute_implied_static(
     *,
     inputs: ModelInputs,
@@ -156,6 +171,9 @@ def compute_implied_static(
     #    T = -NX*, with NX* = nx_gdp_t * GDP (default: balanced trade), so EX - IM = NX* holds
     #    at the solution. T is distributed proportional to pre-transfer income (a uniform
     #    scale factor that keeps per-capita income positive).
+    #    Placeholder: T is consumed. Korea's 1960s-70s foreign saving financed capital
+    #    formation, so once capital enters the deficit belongs in the investment identity
+    #    (docs/review_fresh_look.md 1.3 item 3).
     # ------------------------------------------------------------
     gdp = float(np.sum(gross_output) - np.sum(intermediate))
     nx_target = (0.0 if exog.nx_gdp is None else float(exog.nx_gdp[t])) * gdp
@@ -186,7 +204,7 @@ def compute_implied_static(
         base_pc = labor_reb + ell  # pre-transfer per-capita income
         income_base = float(np.sum(base_pc * L))
         # Uniform scale that distributes the transfer proportional to income.
-        transfer_scale = max(1e-8, 1.0 + transfer / max(income_base, eps))
+        transfer_scale = _transfer_scale(transfer, income_base, t, eps)
         y_pc = base_pc * transfer_scale
         L_new, _, _ = migration_shares(
             t=t, dims=dims, params=params, exog=exog, L_prev=L_prev, y_pc=y_pc, P=P
@@ -201,7 +219,7 @@ def compute_implied_static(
     ell = land_income / np.maximum(L, eps)
     base_pc = labor_reb + ell
     income_base = float(np.sum(base_pc * L))
-    transfer_scale = max(1e-8, 1.0 + transfer / max(income_base, eps))
+    transfer_scale = _transfer_scale(transfer, income_base, t, eps)
     y_pc = base_pc * transfer_scale
 
     # ------------------------------------------------------------

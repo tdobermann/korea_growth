@@ -38,6 +38,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from korea_growth.accounting import sector_accounts
 from korea_growth.checks import validate_inputs
 from korea_growth.solver import solve_dynamic_equilibrium
 from korea_growth.trade import compute_sector_state
@@ -507,6 +508,14 @@ def with_hci_policy(inputs: ModelInputs) -> ModelInputs:
     return shocked
 
 
+class _PathSlice:
+    """Equilibrium slice at period t in the form the accounting helpers expect."""
+
+    def __init__(self, path: DynamicEquilibriumPath, t: int):
+        self.w, self.r, self.P, self.E = path.w[t], path.r[t], path.P[t], path.E[t]
+        self.taubar, self.pibar = float(path.taubar[t]), float(path.pibar[t])
+
+
 def collect_region_metrics(
     *,
     inputs: ModelInputs,
@@ -518,9 +527,14 @@ def collect_region_metrics(
 
     exports_by_sector = np.zeros((T, N, J), dtype=float)
     output_by_sector = np.zeros((T, N, J), dtype=float)
+    employment_by_sector = np.zeros((T, N, J), dtype=float)
+    va_by_sector = np.zeros((T, N, J), dtype=float)
 
     for t_idx in range(T):
         L_prev = inputs.exog.L0 if t_idx == 0 else path.L[t_idx - 1, :]
+        acc = sector_accounts(inputs, t_idx, L_prev, _PathSlice(path, t_idx))
+        employment_by_sector[t_idx] = acc.employment
+        va_by_sector[t_idx] = acc.value_added
         for j_idx in range(J):
             st = compute_sector_state(
                 t=t_idx,
@@ -563,16 +577,35 @@ def collect_region_metrics(
         "mnf_output_share": mnf_output_share,
         "services_output_share": services_output_share,
         "output_by_sector": output_by_sector,
+        "employment_by_sector": employment_by_sector,
+        "va_by_sector": va_by_sector,
         "taubar": path.taubar,
         "pibar": path.pibar,
     }
 
 
+def _national_shares(by_sector: np.ndarray) -> np.ndarray:
+    total = by_sector.sum(axis=(1, 2))
+    return by_sector.sum(axis=1) / np.maximum(total[:, None], 1e-12)
+
+
 def aggregate_output_shares(metrics: dict[str, np.ndarray]) -> np.ndarray:
-    """Aggregate sectoral output shares using economy-wide output weights."""
-    output = metrics["output_by_sector"]
-    economy_total = output.sum(axis=(1, 2))
-    return output.sum(axis=1) / np.maximum(economy_total[:, None], 1e-12)
+    """National sectoral shares of *gross output* (T, J), including intermediate sales.
+
+    Gross-output, value-added and employment shares are different objects; report them
+    separately (docs/review_fresh_look.md 1.3 item 4).
+    """
+    return _national_shares(metrics["output_by_sector"])
+
+
+def aggregate_value_added_shares(metrics: dict[str, np.ndarray]) -> np.ndarray:
+    """National sectoral shares of value added (T, J)."""
+    return _national_shares(metrics["va_by_sector"])
+
+
+def aggregate_employment_shares(metrics: dict[str, np.ndarray]) -> np.ndarray:
+    """National sectoral shares of employment, counted in workers (T, J)."""
+    return _national_shares(metrics["employment_by_sector"])
 
 
 def calibration_moments(
@@ -581,13 +614,18 @@ def calibration_moments(
     policy: dict[str, np.ndarray],
 ) -> dict[str, float]:
     """Directional moments used to compare the simulation to the paper."""
-    base_agg = aggregate_output_shares(base)
-    policy_agg = aggregate_output_shares(policy)
+    moments: dict[str, float] = {}
+    for tag, fn in (
+        ("output", aggregate_output_shares),
+        ("va", aggregate_value_added_shares),
+        ("emp", aggregate_employment_shares),
+    ):
+        b, p = fn(base), fn(policy)
+        for j, name in enumerate(("agri", "mnf", "services")):
+            moments[f"agg_{name}_{tag}_share_change"] = float(p[-1, j] - b[-1, j])
 
     return {
-        "agg_agri_share_change": float(policy_agg[-1, 0] - base_agg[-1, 0]),
-        "agg_mnf_share_change": float(policy_agg[-1, 1] - base_agg[-1, 1]),
-        "agg_services_share_change": float(policy_agg[-1, 2] - base_agg[-1, 2]),
+        **moments,
         "changwon_wage_change": float(policy["wage"][-1, 2] - base["wage"][-1, 2]),
         "changwon_mnf_share_change": float(
             policy["mnf_output_share"][-1, 2] - base["mnf_output_share"][-1, 2]
@@ -643,7 +681,7 @@ def plot_structural_transformation(
         ax.plot(times, pol_agg[:, key], marker="s", label="HCI Policy")
         ax.axvline(3, color="grey", linestyle="--", linewidth=0.8, alpha=0.7,
                    label="HCI declaration (1973)")
-        ax.set_title(f"{s_name} output share")
+        ax.set_title(f"{s_name} gross-output share")
         ax.set_xticks(times)
         ax.set_xticklabels(xlabels, rotation=45, fontsize=8)
         ax.grid(alpha=0.2)
@@ -860,9 +898,13 @@ def print_calibration_summary(
 ) -> None:
     moments = calibration_moments(base=base, policy=policy)
     print("=== Directional calibration check (1985 policy - baseline) ===")
-    print(f"  Aggregate agriculture share: {moments['agg_agri_share_change']:+.4f}")
-    print(f"  Aggregate manufacturing share: {moments['agg_mnf_share_change']:+.4f}")
-    print(f"  Aggregate services share: {moments['agg_services_share_change']:+.4f}")
+    print(f"  {'National sector share':<28} {'gross output':>13} {'value added':>12} {'employment':>11}")
+    for name, label in (("agri", "Agriculture"), ("mnf", "Heavy manufacturing"), ("services", "Services")):
+        print(
+            f"  {label:<28} {moments[f'agg_{name}_output_share_change']:+13.4f}"
+            f" {moments[f'agg_{name}_va_share_change']:+12.4f}"
+            f" {moments[f'agg_{name}_emp_share_change']:+11.4f}"
+        )
     print(f"  Changwon wage: {moments['changwon_wage_change']:+.4f}")
     print(f"  Changwon manufacturing share: {moments['changwon_mnf_share_change']:+.4f}")
     print(f"  Seoul population share: {moments['seoul_pop_change']:+.4f}")

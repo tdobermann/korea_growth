@@ -25,10 +25,10 @@ for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+from korea_growth.accounting import real_gdp_index, sector_accounts
 from korea_growth.checks import aggregate_accounting, cutoff_ordering_violation
-from korea_growth.preferences import composite_price, real_income_index
+from korea_growth.preferences import composite_price, equivalent_income
 from korea_growth.solver import initial_guess, solve_dynamic_equilibrium, solve_static_equilibrium
-from korea_growth.trade import compute_sector_state
 from korea_growth.types import DynamicEquilibriumPath, ModelInputs, SolverOptions
 from scripts.simulate_policy_shock import build_baseline_inputs, with_hci_policy
 
@@ -37,7 +37,9 @@ from scripts.simulate_policy_shock import build_baseline_inputs, with_hci_policy
 # mechanisation in 1965).
 DATA_TARGETS = {
     "real_gdp_pc_index": "1.00 -> ~4",  # Maddison / PWT real GDP per capita
+    "consumption_pc_index": "    n/a",  # purchasing-power check, reported next to real GDP
     "ag_employment_share": "0.59 -> 0.25",  # EAPS: agriculture, forestry & fishing
+    "ag_va_share": "0.38 -> 0.13",  # BoK national accounts, current prices (verify)
     "urban_pop_share": "0.32 -> 0.65",  # WDI urban population share
     "exports_gdp": "0.09 -> 0.33",  # national accounts, goods & services
     "imports_gdp": "0.16 -> 0.32",
@@ -46,37 +48,16 @@ DATA_TARGETS = {
 }
 
 LABELS = {
-    "real_gdp_pc_index": "Real GDP per capita (1965 = 1)",
-    "ag_employment_share": "Agriculture employment share",
+    "real_gdp_pc_index": "Real GDP pc, double-deflated (1965=1)",
+    "consumption_pc_index": "Real consumption pc (1965 = 1)",
+    "ag_employment_share": "Agriculture employment share (workers)",
+    "ag_va_share": "Agriculture value-added share",
     "urban_pop_share": "Urban pop. share (non-'Rural' proxy)",
     "exports_gdp": "Exports / GDP",
     "imports_gdp": "Imports / GDP",
-    "rural_urban_real_income": "Rural / urban real income",
+    "rural_urban_real_income": "Rural / urban equivalent income",
     "traditional_ag_output_share": "Traditional-tech share of ag output",
 }
-
-
-def _sector_labor(inputs: ModelInputs, path: DynamicEquilibriumPath, t: int) -> tuple[np.ndarray, float]:
-    """Economy-wide variable labor payments by sector and the traditional share of ag output."""
-    exog, sigma = inputs.exog, inputs.params.sigma
-    agri = inputs.dims.agri_idx
-    L_prev = exog.L0 if t == 0 else path.L[t - 1]
-    labor = np.zeros(inputs.dims.J)
-    trad_share = np.nan
-    for j in range(inputs.dims.J):
-        st = compute_sector_state(
-            t=t, j=j, dims=inputs.dims, params=inputs.params, exog=exog, L_prev=L_prev,
-            w=path.w[t], r=path.r[t], P=path.P[t], E=path.E[t],
-        )
-        tfc = (sigma - 1.0) / sigma / (1.0 - exog.s[t, :, j])
-        lab_share = (1.0 - exog.beta[t, :, j]) * exog.gamma[t, :, j]
-        if j == agri:
-            lab_share_new = (1.0 - exog.betabreve[t, :, j]) * exog.gammabreve[t, :, j]
-            labor[j] = np.sum(tfc * (lab_share * st.R_trad + lab_share_new * (st.R_breve + st.R_tilde)))
-            trad_share = float(st.R_trad.sum() / st.gross_output.sum())
-        else:
-            labor[j] = np.sum(tfc * lab_share * st.gross_output)
-    return labor, trad_share
 
 
 class _Slice:
@@ -89,32 +70,45 @@ def macro_moments(inputs: ModelInputs, path: DynamicEquilibriumPath) -> dict[str
     dims, params = inputs.dims, inputs.params
     rural = dims.regions.index("Rural")
     urban = [i for i in range(dims.N) if i != rural]
-    out: dict[str, list[float]] = {k: [] for k in LABELS}
+    agri = dims.agri_idx
+    out: dict[str, list[float]] = {k: [] for k in LABELS if k != "real_gdp_pc_index"}
     out["cutoff_violation"] = []
+    accounts = []
 
     for t in range(dims.T):
         L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        agg = aggregate_accounting(inputs, t, L_prev, _Slice(path, t))
+        eq = _Slice(path, t)
+        agg = aggregate_accounting(inputs, t, L_prev, eq)
+        acc = sector_accounts(inputs, t, L_prev, eq)
+        accounts.append(acc)
         L = path.L[t]
 
+        # Consumption purchasing power: disposable income over the local consumption
+        # composite price, population-weighted (a purchasing-power measure, not GDP).
         P_comp = np.array([composite_price(path.P[t, d], params.alpha_j) for d in range(dims.N)])
-        P_nat = float(np.exp(np.dot(L, np.log(P_comp))))
-        Y_real = np.array(
-            [real_income_index(path.y_pc[t, d], path.P[t, d], params.alpha_j, params.v_j) for d in range(dims.N)]
+        Y_eq = np.array(
+            [
+                equivalent_income(path.y_pc[t, d], path.P[t, d], params.alpha_j, params.v_j, params.eta)
+                for d in range(dims.N)
+            ]
         )
-        labor, trad_share = _sector_labor(inputs, path, t)
+        emp = acc.employment.sum(axis=0)
+        va = acc.value_added.sum(axis=0)
 
-        out["real_gdp_pc_index"].append(agg["GDP"] / P_nat / L.sum())
-        out["ag_employment_share"].append(labor[dims.agri_idx] / labor.sum())
+        out["consumption_pc_index"].append(float(np.sum(L * path.y_pc[t] / P_comp) / L.sum()))
+        out["ag_employment_share"].append(emp[agri] / emp.sum())
+        out["ag_va_share"].append(va[agri] / va.sum())
         out["urban_pop_share"].append(1.0 - L[rural] / L.sum())
         out["exports_gdp"].append(agg["EX"] / agg["GDP"])
         out["imports_gdp"].append(agg["IM"] / agg["GDP"])
-        out["rural_urban_real_income"].append(Y_real[rural] / np.average(Y_real[urban], weights=L[urban]))
-        out["traditional_ag_output_share"].append(trad_share)
-        out["cutoff_violation"].append(cutoff_ordering_violation(inputs, t, L_prev, _Slice(path, t)))
+        out["rural_urban_real_income"].append(Y_eq[rural] / np.average(Y_eq[urban], weights=L[urban]))
+        out["traditional_ag_output_share"].append(acc.traditional_ag_output_share)
+        out["cutoff_violation"].append(cutoff_ordering_violation(inputs, t, L_prev, eq))
 
     moments = {k: np.asarray(v) for k, v in out.items()}
-    moments["real_gdp_pc_index"] = moments["real_gdp_pc_index"] / moments["real_gdp_pc_index"][0]
+    # Total population is normalised to 1 in every period, so levels are per capita.
+    moments["real_gdp_pc_index"] = real_gdp_index(accounts)
+    moments["consumption_pc_index"] = moments["consumption_pc_index"] / moments["consumption_pc_index"][0]
     return moments
 
 

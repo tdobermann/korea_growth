@@ -300,6 +300,29 @@ the chosen counterfactual requires them.
 
 ---
 
+## 8. Disposition (2026-10-03)
+
+| Item | Status |
+|---|---|
+| §1.3.1 `model.tex` sign | Done in the PR that added this report. |
+| §1.3.2 +0.127 → +0.057 | Checked. `cdafe29` reproduces +0.127 and is guess-invariant (3 × 10⁻¹⁴). It has no transfer and leaks land rents and fixed costs, so it runs an implied surplus of ~27% of gross output and cannot be rerun "with `nx_gdp = 0`". Old accounts → corrected accounts with balanced trade: +0.127 → +0.104. The fall to +0.057 was selection on the indeterminate continuum. |
+| §1.3.3 transfer | Infeasible surplus targets now raise (`equilibrium._transfer_scale`). Consumption of the transfer is documented as a placeholder until capital enters. |
+| §1.3.4 label | `aggregate_output_shares` documented as gross-output shares; value-added and employment shares added and printed side by side. 1985 heavy-mfg effect: +0.095 / +0.083 / +0.089. |
+| §1.3.5 trade elasticity | `ModelParameters.sigma_x` (default σ): CES nest with σ among Korean varieties and σ_x against foreign goods; solved as a scalar fixed point per sector (`model.tex` eq. `sigmax`). Not yet calibrated, and it matters: the 1985 heavy-mfg gross-output effect is +0.026 / +0.095 / +0.133 at σ_x = 2 / 4 / 6. |
+| §1.3.6 entry/export/adoption | Fixed: nested discrete choice (`trade.nested_cutoffs`; `model.tex` eq. `nested`). It moved the heavy-mfg effect from +0.104 to +0.095. The calibration is still at a corner: all agricultural cutoffs coincide and the traditional share is 0. That needs recalibration, not code. |
+| §2.1 employment | Scorecard counts workers via `accounting.sector_accounts` (sums to population; tested). |
+| §2.2 real GDP | Chained Fisher double-deflated index (`accounting.real_gdp_index`); real consumption per capita reported separately. |
+| §2.3 migration index | Replaced by the exact PIGL equivalent income at unit reference prices; welfare (`expected_utility`) uses the same values; tests cover the money-metric property, a ranking inversion of the old index, and ∂EU/∂W = μ. Headline effect changes by < 10⁻⁵. |
+| §3 Matsuyama in space | `fresh_look.md` §3.4 restated as a model-generated prediction, with the three conflations, the rice-price and aggregation caveats, and the Korean-setting point. |
+| §4 empirical design | `fresh_look.md` §4 design 1: separate predetermined access measures, outcome table, treatment definition, placebo, zero-crossing. |
+| §5 inversion | `fresh_look.md` §3.1: the counting argument and a requirement to demonstrate identification before `inversion.py`; caveats on causal interpretation, exact fit and conditional counterfactuals. |
+| §6 novelty | `fresh_look.md` §3.7 (Cheung–Yang), to verify the JIE status. |
+| §7 build sequence | `fresh_look.md` §7 reordered: measurement fixes, small spatial agriculture model, reservoir event studies, then expansion. |
+
+`docs/model.pdf` was not rebuilt (no LaTeX toolchain in the environment that made these edits).
+
+---
+
 ## Appendix — reproducing the checks
 
 - Scorecard and guess invariance: `python scripts/macro_scorecard.py`.
