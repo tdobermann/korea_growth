@@ -285,6 +285,48 @@ def test_accounts_add_up_with_labor_unit_fixed_costs():
         np.testing.assert_allclose(st.F_cost, inputs.exog.F[0, :, j] * eq.w)
 
 
+def test_nontraded_sector_has_no_foreign_trade():
+    inputs = build_toy_inputs()
+    nontraded = np.zeros(inputs.dims.J, dtype=bool)
+    nontraded[-1] = True
+    inputs = replace(inputs, exog=replace(inputs.exog, nontraded=nontraded))
+    path = solve_dynamic_equilibrium(
+        inputs=inputs, options=SolverOptions(max_iter=20000, tol=1e-11, verbose=False)
+    )
+    j = inputs.dims.J - 1
+    for t in range(inputs.dims.T):
+        L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
+        st = compute_sector_state(
+            t=t, j=j, dims=inputs.dims, params=inputs.params, exog=inputs.exog,
+            L_prev=L_prev, w=path.w[t], r=path.r[t], P=path.P[t], E=path.E[t],
+        )
+        assert np.all(st.R_tilde == 0.0) and np.all(st.num_exporters == 0.0)
+        # Price index from domestic varieties only.
+        tau_pow = inputs.exog.tau[t, j] ** (1.0 - inputs.params.sigma)
+        np.testing.assert_allclose(
+            st.P_implied, (st.B_domestic @ tau_pow) ** (1.0 / (1.0 - inputs.params.sigma))
+        )
+        agg = aggregate_accounting(inputs, t, L_prev, _Eq(path, t))
+        assert abs(agg["resource_residual"]) < 1e-8
+        assert abs(agg["nx_residual"]) < 1e-8
+
+
+def test_amenity_inversion_reproduces_target_population():
+    from korea_growth.inversion import invert_amenities
+
+    inputs = build_toy_inputs()
+    opts = SolverOptions(max_iter=20000, tol=1e-12, verbose=False)
+    L_target = np.array([0.5, 0.3, 0.2])
+    vbar, _ = invert_amenities(
+        inputs=inputs, t=0, L_prev=inputs.exog.L0, L_target=L_target, options=opts
+    )
+    Vbar = inputs.exog.Vbar.copy()
+    Vbar[0] = vbar
+    inverted = replace(inputs, exog=replace(inputs.exog, Vbar=Vbar))
+    eq = solve_static_equilibrium(inputs=inverted, t=0, L_prev=inputs.exog.L0, options=opts)
+    np.testing.assert_allclose(eq.L, L_target, atol=1e-9)
+
+
 def test_infeasible_surplus_target_raises():
     assert _transfer_scale(-0.5, 1.0, 0, 1e-14) == pytest.approx(0.5)
     with pytest.raises(ValueError, match="Infeasible"):

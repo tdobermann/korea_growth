@@ -105,9 +105,13 @@ def _double_deflated_va(prices_from: SectorAccounts, quantities_from: SectorAcco
     def output_value(p: np.ndarray, a: SectorAccounts) -> np.ndarray:
         with np.errstate(invalid="ignore", divide="ignore"):
             q = np.where(a.gross_output > 0.0, a.gross_output / a.producer_price, 0.0)
-        return np.where(q > 0.0, p * q, 0.0)
+            return np.where(q > 0.0, p * q, 0.0)
 
-    y = output_value(prices_from.producer_price, quantities_from)
+    # A region-sector with no producers has no producer price. If it produces in only one of
+    # the two periods, value it at the price of the period in which it exists.
+    p = prices_from.producer_price
+    p = np.where(np.isfinite(p), p, quantities_from.producer_price)
+    y = output_value(p, quantities_from)
     x_qty = quantities_from.intermediates / quantities_from.purchaser_price[:, None, :]
     x = x_qty * prices_from.purchaser_price[:, None, :]
     return float(np.sum(y) - np.sum(x))

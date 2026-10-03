@@ -38,6 +38,14 @@ class ModelDimensions:
     agri_sector: str = "Agri"
     heavy_mnf_sector: str = "HeavyMnf"
     services_sector: str = "Services"
+    # Sectors counted as agriculture in reporting (employment, value added). Default: the
+    # agri_sector alone.
+    farm_sectors: Sequence[str] = ()
+
+    @property
+    def farm_idx(self) -> list[int]:
+        names = self.farm_sectors or ((self.agri_sector,) if self.agri_sector in self.sectors else ())
+        return [self.sectors.index(name) for name in names]
 
     @property
     def T(self) -> int:
@@ -148,6 +156,14 @@ class ModelExogenousPaths:
     # Exogenous net exports (EX - IM) as a share of GDP. This pins the trade balance, and with
     # it the level of domestic prices relative to the foreign numeraire. None = balanced trade.
     nx_gdp: Optional[Array] = None  # (T,)
+
+    # Sectors that are not traded with the rest of the world (J,) bool: no imports (the
+    # foreign variety drops out of the price index) and no exports. Interregional trade is
+    # unaffected. None = every sector traded.
+    nontraded: Optional[Array] = None  # (J,)
+
+    def is_nontraded(self, j: int) -> bool:
+        return self.nontraded is not None and bool(self.nontraded[j])
 
 
 @dataclass(frozen=True)

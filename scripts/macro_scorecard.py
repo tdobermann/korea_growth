@@ -1,10 +1,10 @@
 """Macro scorecard: does the model economy look like Korea, 1965-1985?
 
 Solves the baseline and HCI-policy economies of ``scripts/simulate_policy_shock.py`` and
-reports the aggregate moments the macro story is about, next to approximate data values.
-The data column holds order-of-magnitude reference values only (sources listed in
-docs/fresh_look.md, section 1); replace them with the digitised series before using them
-for anything beyond orientation.
+reports the aggregate moments the macro story is about, next to the data values in
+``scripts/data_targets.py``. Each data value carries its provenance: values marked * are
+unverified approximations awaiting the digitised series, and ? means the repository has no
+data for that moment.
 
 Also checks that the static equilibrium does not depend on the solver's initial guess.
 
@@ -25,39 +25,43 @@ for path in (ROOT, SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from korea_growth.accounting import real_gdp_index, sector_accounts
-from korea_growth.checks import aggregate_accounting, cutoff_ordering_violation
-from korea_growth.preferences import composite_price, equivalent_income
+from korea_growth.checks import cutoff_ordering_violation, pigl_share_violation
+from korea_growth.preferences import equivalent_income
 from korea_growth.solver import initial_guess, solve_dynamic_equilibrium, solve_static_equilibrium
 from korea_growth.types import DynamicEquilibriumPath, ModelInputs, SolverOptions
-from scripts.simulate_policy_shock import build_baseline_inputs, with_hci_policy
-
-# 1965 -> 1985 reference values; approximate, to be replaced with the digitised series.
-# Only the direction is asserted for the last two (sign of the rural gap; near-zero
-# mechanisation in 1965).
-DATA_TARGETS = {
-    "real_gdp_pc_index": "1.00 -> ~4",  # Maddison / PWT real GDP per capita
-    "consumption_pc_index": "    n/a",  # purchasing-power check, reported next to real GDP
-    "ag_employment_share": "0.59 -> 0.25",  # EAPS: agriculture, forestry & fishing
-    "ag_va_share": "0.38 -> 0.13",  # BoK national accounts, current prices (verify)
-    "urban_pop_share": "0.32 -> 0.65",  # WDI urban population share
-    "exports_gdp": "0.09 -> 0.33",  # national accounts, goods & services
-    "imports_gdp": "0.16 -> 0.32",
-    "rural_urban_real_income": " <1 -> <1",  # farm vs urban household income per capita
-    "traditional_ag_output_share": " ~1 -> <1",  # power tillers per farm household ~0 in 1965
-}
+from scripts.calibrate_history import history_moments
+from scripts.data_targets import CALIBRATION_KEYS, MISSING, TARGETS
+from scripts.korea_baseline import RURAL, URBAN, YEARS, build_baseline_inputs
+from scripts.simulate_policy_shock import with_hci_policy
 
 LABELS = {
     "real_gdp_pc_index": "Real GDP pc, double-deflated (1965=1)",
-    "consumption_pc_index": "Real consumption pc (1965 = 1)",
     "ag_employment_share": "Agriculture employment share (workers)",
     "ag_va_share": "Agriculture value-added share",
-    "urban_pop_share": "Urban pop. share (non-'Rural' proxy)",
+    "mnf_va_share": "Manufacturing value-added share",
+    "urban_pop_share": "Urban pop. share (non-'Rural')",
     "exports_gdp": "Exports / GDP",
     "imports_gdp": "Imports / GDP",
+    "otherag_import_share": "Import share of other-farm demand",
+    "traditional_rice_share": "Traditional-tech share of rice output",
     "rural_urban_real_income": "Rural / urban equivalent income",
-    "traditional_ag_output_share": "Traditional-tech share of ag output",
 }
+
+
+def _data_column(key: str) -> str:
+    """Data values for 1965 and 1985 from the registry, '*' = unverified, '?' = none."""
+    if key == "real_gdp_pc_index":
+        key = "real_gdp_pc_ratio"
+    vals = {tg.year: tg for tg in TARGETS if tg.key == key}
+    cells = []
+    for year in (1965, 1985):
+        if key == "real_gdp_pc_ratio" and year == 1965:
+            cells.append("1.00")
+        elif year in vals:
+            cells.append(f"{vals[year].value:.2f}{'*' if vals[year].status == 'unverified' else ''}")
+        else:
+            cells.append("?")
+    return " -> ".join(cells)
 
 
 class _Slice:
@@ -67,48 +71,23 @@ class _Slice:
 
 
 def macro_moments(inputs: ModelInputs, path: DynamicEquilibriumPath) -> dict[str, np.ndarray]:
-    dims, params = inputs.dims, inputs.params
-    rural = dims.regions.index("Rural")
-    urban = [i for i in range(dims.N) if i != rural]
-    agri = dims.agri_idx
-    out: dict[str, list[float]] = {k: [] for k in LABELS if k != "real_gdp_pc_index"}
-    out["cutoff_violation"] = []
-    accounts = []
-
-    for t in range(dims.T):
-        L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        eq = _Slice(path, t)
-        agg = aggregate_accounting(inputs, t, L_prev, eq)
-        acc = sector_accounts(inputs, t, L_prev, eq)
-        accounts.append(acc)
+    moments = history_moments(inputs, path)
+    params = inputs.params
+    ratio = []
+    cutoff = []
+    for t in range(inputs.dims.T):
         L = path.L[t]
-
-        # Consumption purchasing power: disposable income over the local consumption
-        # composite price, population-weighted (a purchasing-power measure, not GDP).
-        P_comp = np.array([composite_price(path.P[t, d], params.alpha_j) for d in range(dims.N)])
-        Y_eq = np.array(
+        y_eq = np.array(
             [
                 equivalent_income(path.y_pc[t, d], path.P[t, d], params.alpha_j, params.v_j, params.eta)
-                for d in range(dims.N)
+                for d in range(inputs.dims.N)
             ]
         )
-        emp = acc.employment.sum(axis=0)
-        va = acc.value_added.sum(axis=0)
-
-        out["consumption_pc_index"].append(float(np.sum(L * path.y_pc[t] / P_comp) / L.sum()))
-        out["ag_employment_share"].append(emp[agri] / emp.sum())
-        out["ag_va_share"].append(va[agri] / va.sum())
-        out["urban_pop_share"].append(1.0 - L[rural] / L.sum())
-        out["exports_gdp"].append(agg["EX"] / agg["GDP"])
-        out["imports_gdp"].append(agg["IM"] / agg["GDP"])
-        out["rural_urban_real_income"].append(Y_eq[rural] / np.average(Y_eq[urban], weights=L[urban]))
-        out["traditional_ag_output_share"].append(acc.traditional_ag_output_share)
-        out["cutoff_violation"].append(cutoff_ordering_violation(inputs, t, L_prev, eq))
-
-    moments = {k: np.asarray(v) for k, v in out.items()}
-    # Total population is normalised to 1 in every period, so levels are per capita.
-    moments["real_gdp_pc_index"] = real_gdp_index(accounts)
-    moments["consumption_pc_index"] = moments["consumption_pc_index"] / moments["consumption_pc_index"][0]
+        ratio.append(y_eq[RURAL] / np.average(y_eq[URBAN], weights=L[URBAN]))
+        L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
+        cutoff.append(cutoff_ordering_violation(inputs, t, L_prev, _Slice(path, t)))
+    moments["rural_urban_real_income"] = np.asarray(ratio)
+    moments["cutoff_violation"] = np.asarray(cutoff)
     return moments
 
 
@@ -129,22 +108,32 @@ def main() -> None:
     policy_inputs = with_hci_policy(base_inputs)
     base_path = solve_dynamic_equilibrium(inputs=base_inputs, options=opts)
     base = macro_moments(base_inputs, base_path)
-    policy = macro_moments(policy_inputs, solve_dynamic_equilibrium(inputs=policy_inputs, options=opts))
+    policy_path = solve_dynamic_equilibrium(inputs=policy_inputs, options=opts)
+    policy = macro_moments(policy_inputs, policy_path)
 
-    print("Macro scorecard, 1965 -> 1985 (data column: approximate reference values)")
-    print(f"{'moment':<38} {'data':>13} {'baseline':>15} {'HCI policy':>15}")
-    print("-" * 84)
+    targeted = {key for key, _ in CALIBRATION_KEYS} | {"real_gdp_pc_index"}
+    print("Macro scorecard, 1965 -> 1985. Data: * = unverified approximate value, ? = no data in")
+    print("the repository (see scripts/data_targets.py). T = calibration target.")
+    print(f"{'moment':<40} {'data':>14} {'baseline':>15} {'HCI policy':>15}")
+    print("-" * 88)
     for key, label in LABELS.items():
+        flag = "T" if key in targeted else " "
         print(
-            f"{label:<38} {DATA_TARGETS[key]:>13}  {base[key][0]:6.3f}->{base[key][-1]:6.3f}"
+            f"{label:<38}{flag:>2} {_data_column(key):>14}  {base[key][0]:6.3f}->{base[key][-1]:6.3f}"
             f"  {policy[key][0]:6.3f}->{policy[key][-1]:6.3f}"
         )
-    print("-" * 84)
-    rural = base_inputs.dims.regions.index("Rural")
-    print(f"Rural pop. share: L0 = {base_inputs.exog.L0[rural]:.3f}; first solved period = "
-          f"{base_path.L[0, rural]:.3f}")
+    print("-" * 88)
+    t1980 = int(np.flatnonzero(YEARS == 1980)[0])
+    print(f"Urban share 1980: baseline {base['urban_pop_share'][t1980]:.3f} (paper draft: 0.57, untargeted)")
     print(f"Max ag cutoff-ordering violation (baseline): {base['cutoff_violation'].max():.3f}")
+    print(
+        f"PIGL share-bound violation (baseline / HCI): {pigl_share_violation(base_inputs, base_path):.1e}"
+        f" / {pigl_share_violation(policy_inputs, policy_path):.1e}"
+    )
     print(f"Initial-guess sensitivity of equilibrium wages: {guess_sensitivity(base_inputs, opts):.2e}")
+    print("Moments with no data in the repository yet:")
+    for item in MISSING:
+        print(f"  - {item}")
 
 
 if __name__ == "__main__":

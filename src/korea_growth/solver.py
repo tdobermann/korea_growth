@@ -62,7 +62,8 @@ def initial_guess(
     # Start price indices at (import price) => tautilde*ptilde (roughly)
     P0 = np.empty((N, J), dtype=float)
     for j in range(J):
-        P0[:, j] = exog.tautilde[t, j, :] * exog.ptilde[t, j]
+        # Non-traded sectors have no import price; start them at one.
+        P0[:, j] = 1.0 if exog.is_nontraded(j) else exog.tautilde[t, j, :] * exog.ptilde[t, j]
 
     # Compute implied L from migration at the guess (keeps things coherent)
     L0, _, _ = population_update(
@@ -104,6 +105,7 @@ def solve_static_equilibrium(
     L_prev: np.ndarray,
     guess: dict | None = None,
     options: SolverOptions | None = None,
+    fixed_L: np.ndarray | None = None,
 ) -> StaticEquilibrium:
     """Solve the static equilibrium at time t.
 
@@ -119,6 +121,8 @@ def solve_static_equilibrium(
         Optional initial guess dict with keys: w,r,P,E,taubar,pibar.
     options:
         Solver options.
+    fixed_L:
+        Optional population to impose instead of solving migration.
     """
 
     validate_inputs(inputs)
@@ -154,6 +158,7 @@ def solve_static_equilibrium(
             taubar=taubar,
             pibar=pibar,
             eps=eps,
+            fixed_L=fixed_L,
         )
 
         max_res = implied.max_residual
@@ -174,6 +179,7 @@ def solve_static_equilibrium(
                 taubar=implied.taubar,
                 pibar=implied.pibar,
                 eps=eps,
+                fixed_L=fixed_L,
             )
             return StaticEquilibrium(
                 t=t,

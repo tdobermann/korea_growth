@@ -948,6 +948,20 @@ minimum --- items 1--8 --- has landed:
       (\texttt{preferences.equivalent\_income}, \texttt{expected\_utility}; report \S2.3).
 \item \emph{Infeasible surplus targets raise an error} instead of flooring the transfer scale
       (report item 1.3.3).
+\item \emph{Internationally non-traded sectors} (\texttt{ModelExogenousPaths.nontraded}):
+      for $j$ non-traded, the foreign variety drops out of $P_{djt}$ and $\tilde D_{j,t}=0$, so
+      there are no imports or exports. Interregional trade is unaffected. The Korea baseline
+      treats rice (protected by import controls and, from 1969, procurement) and services as
+      non-traded, and other farm output (wheat and feed grains) as traded.
+\item \emph{Amenity inversion} (\texttt{inversion.invert\_amenities}): with population
+      pinned at the observed $L_t$, the rest of the static equilibrium does not depend on
+      $\bar V_t$. So $\bar V_t$ (up to scale) is recovered exactly from the logit
+      \eqref{eq:mu}. The baseline inverts 1965 amenities so that the observed 1965 population
+      is an equilibrium; later urbanisation is a model outcome.
+\item \emph{PIGL domain guard}: shares $\alpha_j+v_j(y/\mathcal P)^{-\eta}$ outside $[0,1]$
+      (incomes too low for the Engel shifters) are truncated and renormalised. This guards
+      transient solver iterates only, and \texttt{checks.pigl\_share\_violation} verifies that
+      it does not bind at a solved path.
 \item \emph{Fixed costs in labour units} (\texttt{ModelParameters.fixed\_costs\_in\_labor}):
       $F,\breve F,\tilde F$ are labour requirements, and the cost is $F\,w_o$, paid to local
       labour. Otherwise entry, exporting and mechanisation get mechanically cheaper in real

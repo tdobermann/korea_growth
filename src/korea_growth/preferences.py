@@ -120,10 +120,27 @@ def expenditure_shares(
     Under the restriction sum_j alpha_j = 1 and sum_j v_j = 0, shares sum to 1.
     """
 
+    psi = raw_expenditure_shares(y_pc, P_row, alpha_j, v_j, eta)
+    if np.any(psi < 0.0):
+        # Outside the PIGL domain (income too low for the Engel shifters): a numerical guard
+        # for transient solver iterates. ``checks.pigl_share_violation`` verifies that it does
+        # not bind at a solved equilibrium.
+        psi = np.maximum(psi, 0.0)
+        psi = psi / psi.sum()
+    return psi
+
+
+def raw_expenditure_shares(
+    y_pc: float,
+    P_row: np.ndarray,
+    alpha_j: np.ndarray,
+    v_j: np.ndarray,
+    eta: float,
+) -> np.ndarray:
+    """PIGL shares alpha_j + v_j (y / P)^(-eta) without the domain guard."""
     prices = composite_price(P_row, alpha_j)
     scale = (y_pc / prices) ** (-eta) if abs(eta) >= 1e-14 else 1.0
-    psi = alpha_j + v_j * scale
-    return psi
+    return np.asarray(alpha_j) + np.asarray(v_j) * scale
 
 
 def migration_values(

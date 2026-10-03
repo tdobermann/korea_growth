@@ -249,7 +249,13 @@ def compute_sector_state(
     # with P^X the CES index of Korean delivered export prices. sigma_x = sigma (default)
     # gives D_x = Dtilde; otherwise D_x solves a scalar fixed point.
     sigma_x = params.sigma_x
-    if sigma_x is None or sigma_x == sigma:
+    nontraded = exog.is_nontraded(j)
+    if nontraded:
+        # No foreign demand: the export option has the slope of the option below it and a
+        # higher fixed cost, so no firm exports.
+        D_x = 0.0
+        phis, Ztilde, base_export = choices(D_x)
+    elif sigma_x is None or sigma_x == sigma:
         D_x = Dtilde_j
         phis, Ztilde, base_export = choices(D_x)
     else:
@@ -309,8 +315,14 @@ def compute_sector_state(
     base_total = base_trad + base_breve
 
     domestic_integrals_d = base_total @ tau_pow  # (N,)
-    import_term_d = np.power(exog.tautilde[t, j, :] * ptilde_j, 1.0 - sigma)
-    P_implied = np.power(domestic_integrals_d + import_term_d, 1.0 / (1.0 - sigma))
+    if nontraded:
+        import_term_d = np.zeros(N, dtype=float)
+    else:
+        import_term_d = np.power(exog.tautilde[t, j, :] * ptilde_j, 1.0 - sigma)
+    # Floor: a non-traded sector with no active firms at the current iterate would have an
+    # infinite price. A large finite price raises the demand shifter S, so firms enter at the
+    # next iterate. The floor is far below any equilibrium value of the sum.
+    P_implied = np.power(np.maximum(domestic_integrals_d + import_term_d, 1e-12), 1.0 / (1.0 - sigma))
 
     # -------- Revenues --------
     R_trad = base_trad * S_o

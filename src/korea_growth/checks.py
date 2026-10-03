@@ -56,6 +56,8 @@ def validate_shapes(inputs: ModelInputs) -> None:
     assert_shape("tax_spending_on_building_H_and_roads", ex.tax_spending_on_building_H_and_roads, (T,))
     if ex.nx_gdp is not None:
         assert_shape("nx_gdp", ex.nx_gdp, (T,))
+    if ex.nontraded is not None:
+        assert_shape("nontraded", np.asarray(ex.nontraded), (J,))
 
 
 def validate_param_restrictions(inputs: ModelInputs, tol: float = 1e-10) -> None:
@@ -179,6 +181,23 @@ def aggregate_accounting(inputs: ModelInputs, t: int, L_prev: np.ndarray, eq) ->
         pibar=eq.pibar,
     )
     return implied.aggregates
+
+
+def pigl_share_violation(inputs: ModelInputs, path) -> float:
+    """Largest PIGL share-bound violation max(0, -psi_j, psi_j - 1) along a solved path.
+
+    The PIGL domain is income-dependent (model.tex, regularity conditions), so it is checked
+    at the solution. A positive value means the share guard in ``expenditure_shares`` bound.
+    """
+    from .preferences import raw_expenditure_shares
+
+    p = inputs.params
+    worst = 0.0
+    for t in range(inputs.dims.T):
+        for o in range(inputs.dims.N):
+            psi = raw_expenditure_shares(path.y_pc[t, o], path.P[t, o], p.alpha_j, p.v_j, p.eta)
+            worst = max(worst, float(np.max(-psi)), float(np.max(psi - 1.0)))
+    return max(0.0, worst)
 
 
 def cutoff_ordering_violation(inputs: ModelInputs, t: int, L_prev: np.ndarray, eq) -> float:

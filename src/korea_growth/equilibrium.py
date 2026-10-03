@@ -72,8 +72,12 @@ def compute_implied_static(
     taubar: float,
     pibar: float,
     eps: float = 1e-14,
+    fixed_L: Optional[np.ndarray] = None,
 ) -> StaticImplied:
     """Compute the implied static equilibrium mapping x -> F(x).
+
+    ``fixed_L`` pins the population instead of solving migration (used to invert amenities:
+    with L given, the rest of the equilibrium does not depend on them).
 
     All implied quantities are computed using the *current guess* (w,r,P,E,taubar,pibar).
     """
@@ -177,7 +181,10 @@ def compute_implied_static(
     EX = float(np.sum(R_tilde))
     import_term = np.empty((N, J), dtype=float)
     for j in range(J):
-        import_term[:, j] = np.power(exog.tautilde[t, j, :] * exog.ptilde[t, j], 1.0 - sigma)
+        if exog.is_nontraded(j):
+            import_term[:, j] = 0.0
+        else:
+            import_term[:, j] = np.power(exog.tautilde[t, j, :] * exog.ptilde[t, j], 1.0 - sigma)
     import_share = import_term / np.maximum(np.power(P, 1.0 - sigma), eps)  # (N,J)
     IM = float(np.sum(import_share * E))
     transfer = -nx_target
@@ -193,9 +200,9 @@ def compute_implied_static(
     land_income = r * H_t  # (N,) region land rent r_o H_o
     labor_reb = (1.0 - taubar + pibar) * w  # (N,) labor income + rebate, per capita
 
-    L = L_prev.copy()
+    L = L_prev.copy() if fixed_L is None else np.asarray(fixed_L, dtype=float)
     transfer_scale = 1.0
-    for _ in range(500):
+    for _ in range(0 if fixed_L is not None else 500):
         ell = land_income / np.maximum(L, eps)
         base_pc = labor_reb + ell  # pre-transfer per-capita income
         income_base = float(np.sum(base_pc * L))

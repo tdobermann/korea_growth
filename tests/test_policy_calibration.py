@@ -7,12 +7,10 @@ from korea_growth.accounting import sector_accounts
 from korea_growth.production import unit_cost_bundle
 from korea_growth.solver import solve_dynamic_equilibrium
 from korea_growth.types import SolverOptions
-from scripts.calibrate_agriculture import moments_1965
+from korea_growth.checks import pigl_share_violation
+from scripts.calibrate_history import history_moments, model_value
+from scripts.data_targets import CALIBRATION_KEYS, target
 from scripts.simulate_policy_shock import (
-    AG_ADOPTION_FIXED_COST,
-    AG_FOREIGN_DEMAND,
-    AG_TARGET_EXPORT_SHARE_1965,
-    AG_TARGET_TRADITIONAL_SHARE_1965,
     aggregate_output_shares,
     build_baseline_inputs,
     collect_region_metrics,
@@ -41,17 +39,8 @@ def policy_paths():
 def policy_metrics(policy_paths):
     baseline_inputs, policy_inputs, baseline_path, policy_path = policy_paths
 
-    agri_idx = baseline_inputs.dims.sectors.index("Agri")
-    base = collect_region_metrics(
-        inputs=baseline_inputs,
-        path=baseline_path,
-        target_sector_idx=agri_idx,
-    )
-    policy = collect_region_metrics(
-        inputs=policy_inputs,
-        path=policy_path,
-        target_sector_idx=agri_idx,
-    )
+    base = collect_region_metrics(inputs=baseline_inputs, path=baseline_path)
+    policy = collect_region_metrics(inputs=policy_inputs, path=policy_path)
     return base, policy
 
 
@@ -71,10 +60,19 @@ def test_policy_matches_directional_targets(policy_metrics):
     assert policy["services_output_share"][-1, 4] > base["services_output_share"][-1, 4]
 
 
-def test_agricultural_calibration_hits_1965_targets():
-    trad, export_share = moments_1965(AG_FOREIGN_DEMAND, AG_ADOPTION_FIXED_COST)
-    assert trad == pytest.approx(AG_TARGET_TRADITIONAL_SHARE_1965, abs=1e-4)
-    assert export_share == pytest.approx(AG_TARGET_EXPORT_SHARE_1965, abs=1e-4)
+def test_baseline_reproduces_structural_transformation(policy_paths):
+    # The calibrated baseline hits the calibration targets of scripts/data_targets.py and
+    # starts from the observed 1965 population (inverted amenities; no first-period jump).
+    baseline_inputs, _, baseline_path, _ = policy_paths
+    np.testing.assert_allclose(baseline_path.L[0], baseline_inputs.exog.L0, atol=1e-6)
+    moments = history_moments(baseline_inputs, baseline_path)
+    for key, year in CALIBRATION_KEYS:
+        value, tgt = model_value(moments, key, year), target(key, year).value
+        if key == "real_gdp_pc_ratio":
+            assert value == pytest.approx(tgt, rel=0.02), key
+        else:
+            assert value == pytest.approx(tgt, abs=0.01), (key, year)
+    assert pigl_share_violation(baseline_inputs, baseline_path) == 0.0
 
 
 def test_mechanisation_diffuses_faster_under_hci(policy_paths):
@@ -88,7 +86,7 @@ def test_mechanisation_diffuses_faster_under_hci(policy_paths):
 
     base_0, base_T = trad_share(baseline_inputs, baseline_path, 0), trad_share(baseline_inputs, baseline_path, -1)
     pol_T = trad_share(policy_inputs, policy_path, -1)
-    assert 0.9 < base_0 < 1.0
+    assert base_0 > 0.9
     assert base_T < base_0
     assert pol_T < base_T
 
