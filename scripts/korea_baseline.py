@@ -43,27 +43,27 @@ class HistoryCalibration:
     """Parameters set by scripts/calibrate_history.py (defaults: current calibrated values)."""
 
     # Annual TFP growth by sector (log points), common across regions.
-    g_farm: float = 0.0359
-    g_mnf: float = 0.0386
-    g_svc: float = 0.0359  # calibration ties g_svc = g_farm (no sectoral TFP data yet)
+    g_farm: float = 0.031693
+    g_mnf: float = 0.041483
+    g_svc: float = 0.031693  # calibration ties g_svc = g_farm (no sectoral TFP data yet)
     # Foreign demand for manufactures: 1965 level and annual growth (log points).
-    d_mnf_1965: float = 0.05
-    g_export: float = 0.1000
+    d_mnf_1965: float = 0.004419
+    g_export: float = 0.239667
     # PIGL: eta, food Engel shifter v_food (> 0), food asymptote alpha_food, and the
     # manufacturing share of the non-food asymptote.
-    eta: float = 0.263
-    v_food: float = 0.490
+    eta: float = 0.391253
+    v_food: float = 0.509502
     alpha_food: float = 0.05
-    mnf_share_nonfood: float = 0.10
+    mnf_share_nonfood: float = 0.020000
     # Farm TFP in the cities relative to Rural (farming is mostly rural). ASSUMPTION.
     urban_farm_tfp: float = 0.40
     # Non-farm TFP in the cities relative to Rural (urban productivity premium), calibrated to
     # the 1980 urban population share.
-    urban_nonfarm_tfp: float = 1.0
+    urban_nonfarm_tfp: float = 1.173910
     # 1965 urban population share; the 1965 amenities make it an equilibrium.
     urban_share_1965: float = 0.32
     # Amenities (N,) that make the 1965 population an equilibrium (inverted; Seoul = 1).
-    vbar_1965: tuple = (1.0, 1.0, 1.0, 1.0, 1.0)
+    vbar_1965: tuple = (1.000000, 0.471456, 0.198998, 0.448559, 0.710297)
     # Mechanisation fixed cost for rice (labour units). Not identified without tiller data.
     rice_adoption_fixed_cost: float = 0.80
 

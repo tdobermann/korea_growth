@@ -63,6 +63,8 @@ MISSING = [
     "power tillers per farm household, 1965-85: pins the rice mechanisation fixed cost",
     "sectoral TFP or labour-productivity growth (e.g. GGDC 10-sector): separates g_farm from g_svc",
     "regional population and farm employment: replaces the stylised five-region split",
+    "input-output coefficients (BoK IO tables): the stylised IO matrix over-produces manufacturing in 1965",
+    "farm vs non-farm earnings: the agricultural productivity gap needs sectoral wage data",
 ]
 
 

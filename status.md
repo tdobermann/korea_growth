@@ -25,6 +25,15 @@ _Last updated: 2026-07-06 (branch `claude/model-review-md-jjiaa2`)._
 > revised: an identification caveat on the inversion, "Matsuyama in space" restated as a
 > model-generated prediction, separate access measures, and an agriculture-first build order.
 
+> **2026-10-04 update.** The baseline now reproduces Korea's 1965–85 structural
+> transformation (`scripts/korea_baseline.py`, `scripts/calibrate_history.py`): farm
+> employment 0.605 → 0.229, manufacturing value added 0.192 → 0.298, real GDP ×4, exports
+> 0.08 → 0.33, urbanisation 0.32 → 0.63 (0.547 in 1980). Sectors: protected Rice,
+> import-competing OtherAg, Manufacturing, non-traded Services. Open: the agricultural
+> productivity gap (needs sectoral wages or occupation wedges), real input–output data, and
+> the HCI aggregate effect, which is negative under this baseline. See `docs/fresh_look.md` §2.6
+> and `scripts/data_targets.py` for target provenance.
+
 ---
 
 ## 1. Done
@@ -79,7 +88,8 @@ These are modeling choices currently set to a default and flagged inline as
   choice (`trade.nested_cutoffs`): exporters and adopters are active firms, and agricultural
   exporters are adopters. The resulting corner (every active farm mechanised and exported)
   was removed by recalibration: `xi = 1.2`, fixed costs in labour units, and `Dtilde_Agri`
-  and `Fbreve_Agri` set by `scripts/calibrate_agriculture.py` to a 1965 traditional share of
+  and `Fbreve_Agri` set by `scripts/calibrate_agriculture.py` (since superseded by the
+  history-calibrated baseline, below) to a 1965 traditional share of
   0.97 and 1% farm exports. **Still open:** farm employment is 11% (food imports are 58% of food
   spending); food import protection (τ̃_Agri) is the next lever, and services/manufacturing
   foreign demand still makes exports 73% of GDP.

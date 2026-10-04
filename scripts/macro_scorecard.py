@@ -124,7 +124,7 @@ def main() -> None:
         )
     print("-" * 88)
     t1980 = int(np.flatnonzero(YEARS == 1980)[0])
-    print(f"Urban share 1980: baseline {base['urban_pop_share'][t1980]:.3f} (paper draft: 0.57, untargeted)")
+    print(f"Urban share 1980: baseline {base['urban_pop_share'][t1980]:.3f} (paper draft: 0.57, targeted)")
     print(f"Max ag cutoff-ordering violation (baseline): {base['cutoff_violation'].max():.3f}")
     print(
         f"PIGL share-bound violation (baseline / HCI): {pigl_share_violation(base_inputs, base_path):.1e}"
