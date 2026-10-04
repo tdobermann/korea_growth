@@ -37,8 +37,8 @@ TARGETS = [
     Target("exports_gdp", 1985, 0.33, "BoK national accounts; fresh_look.md 1.1", "unverified"),
     # Population: the 1965 value sets the initial distribution (amenity inversion).
     Target("urban_pop_share", 1965, 0.32, "WDI; fresh_look.md 1.1 (paper draft gives 28% for 1960)", "unverified"),
-    # Validation only (not targeted)
     Target("urban_pop_share", 1980, 0.57, "paper draft sec. 1 ('57% by 1980')", "sourced"),
+    # Validation only (not targeted)
     Target("urban_pop_share", 1985, 0.65, "WDI; fresh_look.md 1.1", "unverified"),
     Target("ag_va_share", 1965, 0.38, "BoK national accounts; scorecard (added 2026-10-03)", "unverified"),
     Target("ag_va_share", 1985, 0.13, "BoK national accounts; scorecard (added 2026-10-03)", "unverified"),
@@ -52,6 +52,7 @@ CALIBRATION_KEYS = [
     ("real_gdp_pc_ratio", 1985),
     ("exports_gdp", 1965),
     ("exports_gdp", 1985),
+    ("urban_pop_share", 1980),
 ]
 
 # Moments the calibration would use if data were available, with none in the repository.

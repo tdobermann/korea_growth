@@ -1,7 +1,7 @@
 """Calibrate the 1965-1985 baseline to Korea's structural transformation.
 
-Solves for seven parameters of ``scripts/korea_baseline.HistoryCalibration`` so that the
-baseline reproduces the seven calibration targets in ``scripts/data_targets.py``:
+Solves for eight parameters of ``scripts/korea_baseline.HistoryCalibration`` so that the
+baseline reproduces the eight calibration targets in ``scripts/data_targets.py``:
 
     parameter                         main target it moves
     g_mnf      mnf TFP growth         real GDP per capita, 1985 / 1965
@@ -11,6 +11,7 @@ baseline reproduces the seven calibration targets in ``scripts/data_targets.py``
     mnf_share_nonfood                 manufacturing VA share, 1965
     d_mnf_1965 foreign demand level   exports / GDP, 1965
     g_export   foreign demand growth  exports / GDP, 1985
+    urban_nonfarm_tfp  urban premium  urban population share, 1980 (sourced)
 
 Each evaluation first inverts the 1965 amenities so that the observed 1965 population is an
 equilibrium (``korea_growth.inversion``); urbanisation after 1965 is then a model outcome.
@@ -46,7 +47,7 @@ from scripts.data_targets import CALIBRATION_KEYS, TARGETS, target
 from scripts.korea_baseline import CURRENT, RURAL, YEARS, HistoryCalibration, build_baseline_inputs
 
 OPTS = SolverOptions(max_iter=20000, tol=1e-10, damping=0.25, verbose=False)
-FREE = ["g_mnf", "g_farm", "eta", "v_food", "mnf_share_nonfood", "d_mnf_1965", "g_export"]
+FREE = ["g_mnf", "g_farm", "eta", "v_food", "mnf_share_nonfood", "d_mnf_1965", "g_export", "urban_nonfarm_tfp"]
 BOUNDS = {
     "g_mnf": (0.0, 0.2),
     "g_farm": (-0.05, 0.15),
@@ -55,6 +56,7 @@ BOUNDS = {
     "mnf_share_nonfood": (0.02, 0.9),
     "d_mnf_1965": (1e-4, 2.0),
     "g_export": (-0.1, 0.4),
+    "urban_nonfarm_tfp": (0.5, 5.0),
 }
 
 

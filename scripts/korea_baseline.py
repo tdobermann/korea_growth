@@ -3,8 +3,9 @@
 Sectors
   Rice           staple grain; internationally non-traded (protected: import controls and,
                  from 1969, government procurement); carries the mechanisation margin
-  OtherAg        other grains (wheat, barley, feed grains) and other farm output; traded at
-                 world prices, so grain import dependence is an equilibrium outcome
+  OtherAg        other grains (wheat, barley, feed grains) and other farm output; competes
+                 with imports at world prices, so grain import dependence is an equilibrium
+                 outcome (not exported)
   Manufacturing  traded; the export sector
   Services       internationally non-traded
 
@@ -42,20 +43,23 @@ class HistoryCalibration:
     """Parameters set by scripts/calibrate_history.py (defaults: current calibrated values)."""
 
     # Annual TFP growth by sector (log points), common across regions.
-    g_farm: float = 0.0200
-    g_mnf: float = 0.0500
-    g_svc: float = 0.0200  # calibration ties g_svc = g_farm (no sectoral TFP data yet)
+    g_farm: float = 0.0359
+    g_mnf: float = 0.0386
+    g_svc: float = 0.0359  # calibration ties g_svc = g_farm (no sectoral TFP data yet)
     # Foreign demand for manufactures: 1965 level and annual growth (log points).
-    d_mnf_1965: float = 0.10
+    d_mnf_1965: float = 0.05
     g_export: float = 0.1000
     # PIGL: eta, food Engel shifter v_food (> 0), food asymptote alpha_food, and the
     # manufacturing share of the non-food asymptote.
-    eta: float = 0.60
-    v_food: float = 0.40
+    eta: float = 0.263
+    v_food: float = 0.490
     alpha_food: float = 0.05
-    mnf_share_nonfood: float = 0.30
-    # Farm TFP in the cities relative to Rural (farming is mostly rural).
+    mnf_share_nonfood: float = 0.10
+    # Farm TFP in the cities relative to Rural (farming is mostly rural). ASSUMPTION.
     urban_farm_tfp: float = 0.40
+    # Non-farm TFP in the cities relative to Rural (urban productivity premium), calibrated to
+    # the 1980 urban population share.
+    urban_nonfarm_tfp: float = 1.0
     # 1965 urban population share; the 1965 amenities make it an equilibrium.
     urban_share_1965: float = 0.32
     # Amenities (N,) that make the 1965 population an equilibrium (inverted; Seoul = 1).
@@ -125,6 +129,8 @@ def build_baseline_inputs(cal: HistoryCalibration = CURRENT) -> ModelInputs:
     A0[0, SV] = 0.98
     A0[URBAN, R] *= cal.urban_farm_tfp
     A0[URBAN, O] *= cal.urban_farm_tfp
+    A0[URBAN, MF] *= cal.urban_nonfarm_tfp
+    A0[URBAN, SV] *= cal.urban_nonfarm_tfp
     growth = np.stack(
         [np.exp(cal.g_farm * dt), np.exp(cal.g_farm * dt), np.exp(cal.g_mnf * dt), np.exp(cal.g_svc * dt)],
         axis=-1,
@@ -166,9 +172,9 @@ def build_baseline_inputs(cal: HistoryCalibration = CURRENT) -> ModelInputs:
     s = np.zeros((T, N, J))
     s[..., [R, O]] = 0.05
 
-    # --- Foreign demand and prices: only manufactures are exported in volume. ---
+    # --- Foreign demand and prices: only manufactures are exported. OtherAg competes with
+    # imports but is not exported (simplification: farm exports were small). ---
     Dtilde = np.zeros((T, J))
-    Dtilde[:, O] = 0.05  # ASSUMPTION: small other-farm exports
     Dtilde[:, MF] = cal.d_mnf_1965 * np.exp(cal.g_export * dt)
     ptilde = np.ones((T, J))
 
