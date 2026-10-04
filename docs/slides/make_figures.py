@@ -1,4 +1,4 @@
-"""Figures for docs/slides/matsuyama_in_space.tex.
+"""Figures for docs/slides/matsuyama_in_space.tex and matsuyama_in_space_conference.tex.
 
 Solves the history-calibrated baseline (scripts/korea_baseline.CURRENT) and plots the
 1965-85 paths against the targets in scripts/data_targets.py.
@@ -42,14 +42,12 @@ PANELS = [
 ]
 
 
-def main() -> None:
-    _, inputs, path = solve_history(CURRENT)
-    m = history_moments(inputs, path)
-
+def plot_fit(m: dict, panels: list[tuple[str, str]], out: Path) -> None:
+    """Model paths against data targets, one panel per moment (2 x 3 grid)."""
     plt.rcParams.update({"font.size": 9, "axes.edgecolor": INK, "axes.labelcolor": INK,
                          "xtick.color": INK, "ytick.color": INK, "axes.titlecolor": INK})
     fig, axes = plt.subplots(2, 3, figsize=(9.6, 4.9))
-    for ax, (key, title) in zip(axes.flat, PANELS):
+    for ax, (key, title) in zip(axes.flat, panels):
         ax.plot(YEARS, m[key], "-o", color=INK, ms=3.5, lw=1.6, label="model, emp. share")
         data_key = "real_gdp_pc_ratio" if key == "real_gdp_pc_index" else key
         for tg in TARGETS:
@@ -70,16 +68,32 @@ def main() -> None:
         ax.grid(alpha=0.25)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
+    for ax in axes.flat[len(panels):]:
+        ax.set_axis_off()
     handles = [
         plt.Line2D([], [], color=INK, marker="o", ms=3.5, label="model (baseline)"),
         plt.Line2D([], [], ls="", marker="s", ms=7, mfc=ACCENT, mec=ACCENT, label="data, targeted"),
         plt.Line2D([], [], ls="", marker="D", ms=7, mfc="white", mec=ACCENT, mew=1.6, label="data, untargeted"),
     ]
-    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=8.5)
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
-    out = HERE / "fig_history_fit.pdf"
+    if len(panels) < 6:
+        axes.flat[-1].legend(handles=handles, loc="center", frameon=False, fontsize=9)
+        fig.tight_layout()
+    else:
+        fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=8.5)
+        fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(out)
+    plt.close(fig)
     print(f"wrote {out}")
+
+
+def main() -> None:
+    _, inputs, path = solve_history(CURRENT)
+    m = history_moments(inputs, path)
+    # Internal deck: all six panels.
+    plot_fit(m, PANELS, HERE / "fig_history_fit.pdf")
+    # Conference deck: drop the rice-mechanisation panel, whose level rests on an assumed
+    # fixed cost.
+    plot_fit(m, PANELS[:5], HERE / "fig_history_fit_conf.pdf")
 
 
 if __name__ == "__main__":
