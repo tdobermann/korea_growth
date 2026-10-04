@@ -14,6 +14,32 @@ _Last updated: 2026-07-06 (branch `claude/model-review-md-jjiaa2`)._
 > Phases 2–4 around "baseline = history": annual inversion, gravity with external economies in
 > place of Melitz, occupation choice, farm-size-based agriculture, and capital and schooling.
 
+> **2026-10-03 update.** The referee report [`docs/review_fresh_look.md`](docs/review_fresh_look.md)
+> is implemented; its §8 lists what was done for each item. Code: nested entry/adoption/export
+> choice, separate export demand elasticity `sigma_x`, exact PIGL equivalent income for
+> migration and welfare (`expected_utility`), an error for infeasible surplus targets, and
+> `accounting.py` (employment in workers, value added, double-deflated real GDP). The +0.127
+> → +0.057 claim was checked on `cdafe29`. The 1985 heavy-manufacturing effect is now +0.103
+> on the gross-output share (+0.088 value added, +0.092 employment), after the nested choice
+> and the agricultural recalibration (traditional farming 0.97 of farm output in 1965). `fresh_look.md` is
+> revised: an identification caveat on the inversion, "Matsuyama in space" restated as a
+> model-generated prediction, separate access measures, and an agriculture-first build order.
+
+> **2026-10-04 (later).** Sector-specific wages added as theory and code: nested occupation
+> choice inside location choice (`model.tex` section "Occupation choice and sector-specific
+> wages"; `eps_occ`, `b_occ`, `occupation_of_sector`). It removes the integrated market's
+> mechanical limit on the agricultural productivity gap. Not recalibrated: the baseline still
+> uses the integrated market. Illustration in `docs/fresh_look.md` §2.7.
+>
+> **2026-10-04 update.** The baseline now reproduces Korea's 1965–85 structural
+> transformation (`scripts/korea_baseline.py`, `scripts/calibrate_history.py`): farm
+> employment 0.605 → 0.229, manufacturing value added 0.192 → 0.298, real GDP ×4, exports
+> 0.08 → 0.33, urbanisation 0.32 → 0.63 (0.547 in 1980). Sectors: protected Rice,
+> import-competing OtherAg, Manufacturing, non-traded Services. Open: the agricultural
+> productivity gap (needs sectoral wages or occupation wedges), real input–output data, and
+> the HCI aggregate effect, which is negative under this baseline. See `docs/fresh_look.md` §2.6
+> and `scripts/data_targets.py` for target provenance.
+
 ---
 
 ## 1. Done
@@ -43,7 +69,12 @@ Walras / resource / government identities hold to ~1e-13 at the solution; toy an
 sims converge; all tests pass. The corrected accounting was reported to lower the 1985
 heavy-manufacturing effect from **+0.127 → +0.057**. That number came from an indeterminate
 closure (see the trade-closure item below). With a determinate closure the effect is
-**+0.104**.
+**+0.104** (gross-output share). Checked on `cdafe29`: the old code reproduces +0.127 and is
+guess-invariant. It had no foreign transfer and leaked land rents and fixed costs, which left
+an implied surplus of ~27% of gross output. So the accounting fixes lowered the effect by about
+0.02; the rest of the drop to +0.057 was the indeterminate closure's selection. With the nested
+entry/adoption/export choice (2026-10-03) the effect is **+0.095**; after the agricultural
+recalibration it is **+0.103**.
 
 ---
 
@@ -59,17 +90,29 @@ These are modeling choices currently set to a default and flagged inline as
   to 67% of absorption. No extra instrument is needed: `T = −NX*` with
   `NX* = nx_gdp_t · GDP` exogenous (default 0), and the domestic price level clears the
   foreign account. Tested for guess invariance. See `docs/fresh_look.md` §2.1.
-- **Cutoff ordering (§2.2).** `φ̄ ≤ φ̆ ≤ φ̃` is a *diagnostic*, and the toy calibration
-  violates it (~1.1). Choose between (a) primitive parameter restrictions that guarantee it
-  (then enforce in `checks.py`), or (b) solving the joint adoption–export discrete choice.
+- ~~**Cutoff ordering (§2.2).**~~ **Resolved 2026-10-03** by (b), the nested discrete
+  choice (`trade.nested_cutoffs`): exporters and adopters are active firms, and agricultural
+  exporters are adopters. The resulting corner (every active farm mechanised and exported)
+  was removed by recalibration: `xi = 1.2`, fixed costs in labour units, and `Dtilde_Agri`
+  and `Fbreve_Agri` set by `scripts/calibrate_agriculture.py` (since superseded by the
+  history-calibrated baseline, below) to a 1965 traditional share of
+  0.97 and 1% farm exports. **Still open:** farm employment is 11% (food imports are 58% of food
+  spending); food import protection (τ̃_Agri) is the next lever, and services/manufacturing
+  foreign demand still makes exports 73% of GDP.
 - **Numeraire (§1.5).** Foreign heavy-mfg price ≡ 1. Alternative: fix aggregate income.
 - **Ownership (§1.1/§3.4).** Local land + nationally-pooled wage-proportional profits.
   Incidence work may want *local* profit retention; add as a robustness switch.
 - **Infra allocation (§1.4).** `G^infra` split 50/50 heavy-mfg/services by population.
   Consider a dedicated construction sector.
-- **Welfare wiring (§3.9).** The inclusive-value formula (`model.tex` eq. `welfare`) is
-  derived but not yet *computed and reported* by the solver, and the exact PIGL money metric
-  for general `η` (vs. the log-case index now used) is still a to-derive appendix item.
+- ~~**Welfare wiring (§3.9).**~~ **Resolved 2026-10-03.** Migration and welfare both use the
+  exact PIGL equivalent income at unit reference prices (`preferences.equivalent_income`).
+  The inclusive value is computed by `preferences.expected_utility`, and a test checks that
+  its gradient equals the migration shares. Not yet reported by the policy script.
+- **Transfer use.** The foreign transfer financing a deficit is consumed. Once capital
+  enters, it belongs in the investment identity.
+- **Export demand elasticity.** `sigma_x` exists (default `sigma`) but is not yet calibrated.
+  The headline depends on it heavily: the 1985 heavy-mfg gross-output effect is +0.021 /
+  +0.103 / +0.137 at `sigma_x` = 2 / 4 / 6.
 
 ---
 

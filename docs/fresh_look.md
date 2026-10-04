@@ -10,7 +10,12 @@ It complements [`model_review.md`](model_review.md) (referee report), [`../statu
 (roadmap) and [`research_agenda.md`](research_agenda.md) (paper portfolio). Diagnostics in §2
 are reproducible with `python scripts/macro_scorecard.py`.
 
-_Written 2026-09-29._
+_Written 2026-09-29. Revised 2026-10-03 after the referee report
+[`review_fresh_look.md`](review_fresh_look.md). The revision refreshes the §2 numbers after the
+nested entry–adoption–export choice and the measurement fixes, adds an identification caveat to
+§3.1, restates "Matsuyama in space" as a model-generated prediction (§3.4), re-specifies the
+reservoir design (§4), adds a novelty section (§3.7), and moves the agriculture block to the
+front of the build (§7)._
 
 ---
 
@@ -29,30 +34,44 @@ standard turns up five problems (§2). Four of them are new relative to the earl
    pick. **Fixed in this commit:** net exports are now pinned exogenously (default: balanced
    trade), a regression test checks that the solution does not depend on the initial guess,
    and the README numbers are refreshed.
-2. **The calibrated 1965 economy is not Korea on any macro margin.** Exports are 95% of GDP
-   (data: ~9%), agriculture has 24% of employment (data: ~59%), a third of the population
-   leaves the "Rural" region in the first period, and rural real income is 20% *above* urban.
-3. **There is no growth engine.** Baseline real GDP per capita rises 13.5% over 1965–85 (the
-   data: roughly fourfold). The HCI package supplies about 70% of all the growth the model
-   has, so by construction policy explains most of what moves.
-4. **The mechanisation and export margins are at a corner.** The cutoffs are computed one
-   margin at a time and never nested, and at the calibrated parameters φ̃ < φ̆ < φ̄
-   everywhere. **Traditional agriculture has zero output share in every period.** Farm
-   "adopters" outnumber active farms 6–14×, and exporters outnumber them 16–36×. The rural
-   mechanisation channel cannot operate.
+2. **The calibrated 1965 economy was not Korea on any macro margin** (items 2–3 describe the
+   3-sector economy; the history-calibrated baseline of §2.6 now reproduces the 1965–85
+   transformation in farm employment, manufacturing, growth, exports and urbanisation). Exports are 73% of GDP
+   (data: ~9%). Agriculture has 11% of employment counted in workers (data: ~59%): food
+   imports supply 58% of food spending. More than half the population leaves the "Rural"
+   region in the first period, and rural real income is 18% *above* urban.
+3. **There is no growth engine.** Baseline real GDP per capita (double-deflated) rises 12%
+   over 1965–85 (the data: roughly fourfold). The HCI package supplies about two-thirds of all
+   the growth the model has, so by construction policy explains most of what moves.
+4. **The mechanisation and export margins were not nested and are still at a corner.** The
+   cutoffs were computed one margin at a time, and at the calibrated parameters φ̃ < φ̆ < φ̄
+   everywhere, so farms exported or mechanised without entering. **Fixed:** the cutoffs come
+   from a nested choice, and the agricultural margin is recalibrated (§2.4). Mechanisation is
+   now mainly labour-saving (ξ = 1.2), fixed costs are in labour units, and farm foreign demand
+   and the adoption cost hit a 1965 traditional output share of 0.97. That share falls to 0.956
+   by 1985 in the baseline and to 0.931 with HCI. Diffusion is slow because baseline wages
+   barely grow (item 3).
 5. **The headline effects were artifacts of the closure.** With a determinate closure, the
-   1985 heavy-manufacturing share effect is +0.104, not +0.057. The claim that the accounting
-   fixes "lowered the HCI effect" does not survive.
+   1985 effect on the heavy-manufacturing *gross-output* share is +0.104, not +0.057. With the
+   nested choice it is +0.095. After the agricultural recalibration it is +0.103 (value-added
+   share +0.088, employment share +0.092). The
+   pre-accounting-fix code gave +0.127 and was itself guess-invariant, so the accounting fixes
+   lowered the effect by about 0.02. The fall to +0.057 was the indeterminate closure picking
+   a point (§2.1).
 
 **Recommendation.** Re-architect around five principles (§3):
 
 | # | Principle | Replaces |
 |---|---|---|
-| 1 | **Baseline = history.** Use an annual clock (1962–90). Each year, invert the fundamentals so the model reproduces the observed township and county panel. Model the programmes as measured shocks, and decompose outcomes with Shapley values. | Hand-set exogenous paths; six unevenly spaced periods; "policy − baseline" deltas |
+| 1 | **Baseline = history.** Use an annual clock (1962–90). Each year, invert the fundamentals so the model reproduces the observed township and county panel, once identification of the inversion is demonstrated (§3.1). Model the programmes as measured shocks, and decompose outcomes with Shapley values. | Hand-set exogenous paths; six unevenly spaced periods; "policy − baseline" deltas |
 | 2 | **Simplify production.** Use CES gravity (Armington or Eaton–Kortum) with sector-specific external economies on employment density. | Melitz–Chaney in every sector, with un-nested cutoffs |
 | 3 | **Put people in sectors.** Nest the occupation choice, including non-employment, inside the location choice. | A single regional wage; no farm/non-farm distinction; no non-participation |
 | 4 | **Put agriculture on observed land.** Competitive farm households on paddy and dry fields, with observed farm-size classes, irrigation, HYV rice, and a farm-size threshold for mechanisation driven by w / p_machine. | Monopolistically competitive "farms" with a fixed-cost adoption margin |
 | 5 | **Include the growth engines the story cannot omit.** Capital, with HCI credit wedges and foreign saving; schooling; demography; world demand. Report poverty and welfare as solver outputs. | Output subsidies as the only HCI instrument; fixed population; no welfare output |
+
+**Build order.** Start small: a spatial model with agriculture, non-farm production, land, goods
+trade and labour mobility, together with the reservoir event studies (§4), comes before the
+growth-engine blocks (§7).
 
 Keep the current model's strengths: PIGL demand (the food problem and services), input–output
 linkages (HCI → cheaper machinery and fertiliser → farm modernisation, the most interesting
@@ -128,7 +147,9 @@ response, and economy-wide labour supply.
 ## 2. What the current model actually does
 
 The numbers are from the 5-region policy simulation. §2.1 uses the pre-fix code (commit
-`bce51c7`). Everything else uses the fixed closure. Reproduce with `scripts/macro_scorecard.py`.
+`bce51c7`). Everything else uses the fixed closure, the nested entry–adoption–export choice
+(§2.4) and the corrected measurement (employment in workers; double-deflated real GDP).
+Reproduce with `scripts/macro_scorecard.py`.
 
 ### 2.1 The equilibrium was indeterminate (fixed here)
 
@@ -161,33 +182,80 @@ reported as `aggregates["nx_residual"]`. The solution is invariant to the guess 
 reports a relative wage difference of 3e-13), and two new tests guard this. Korea's observed
 current-account deficits, which were large in the 1960s–70s, can now be fed in directly.
 
-**Consequences for the headline numbers** (1985, policy − baseline):
+**Consequences for the headline numbers** (1985, policy − baseline). National sector
+shares in the first three rows are *gross-output* shares (`aggregate_output_shares`), which
+include intermediate sales. Value-added and employment shares are reported separately below.
 
-| moment | old closure (README before) | determinate closure (now) |
-|---|---|---|
-| aggregate agriculture share | −0.041 | −0.045 |
-| aggregate heavy-mfg share | +0.057 | **+0.104** |
-| aggregate services share | −0.016 | **−0.060** |
-| Changwon wage | +0.144 | +0.120 |
-| Changwon mfg share | +0.229 | +0.287 |
-| Seoul population share | −0.026 | −0.029 |
-| Rural population share | +0.033 | +0.025 |
-| Rural income per capita | +0.199 | +0.171 |
-| Rural / Daegu services share | +0.106 / +0.106 | +0.094 / +0.081 |
+| moment | old closure (README before) | determinate closure | + nested choice | + ag recalibration (now) |
+|---|---|---|---|---|
+| aggregate agriculture share | −0.041 | −0.045 | −0.040 | −0.005 |
+| aggregate heavy-mfg share | +0.057 | **+0.104** | **+0.095** | **+0.103** |
+| aggregate services share | −0.016 | **−0.060** | −0.055 | −0.098 |
+| Changwon wage | +0.144 | +0.120 | +0.122 | +0.087 |
+| Changwon mfg share | +0.229 | +0.287 | +0.274 | +0.287 |
+| Seoul population share | −0.026 | −0.029 | −0.030 | −0.033 |
+| Rural population share | +0.033 | +0.025 | +0.027 | +0.031 |
+| Rural income per capita | +0.199 | +0.171 | +0.174 | +0.121 |
+| Rural / Daegu services share | +0.106 / +0.106 | +0.094 / +0.081 | +0.110 / +0.093 | +0.064 / +0.065 |
 
-All directional tests still pass. The status.md claim that the accounting corrections moved
-the heavy-manufacturing effect from +0.127 to +0.057 was mostly a change in *which* point on
-the continuum the solver selected.
+With the nested choice, the 1985 heavy-manufacturing effect was +0.095 on the gross-output
+share (+0.083 value added, +0.089 employment); the nesting accounts for essentially all of
+the move from +0.104. After the agricultural recalibration (§2.4) it is +0.103 / +0.088 /
++0.092. The agriculture-share effect almost vanishes, because farming is now small and
+inward-looking: farm output no longer depends on exports, and food imports absorb the demand
+side. Switching the migration index to
+the exact PIGL equivalent income moves it by less than 10⁻⁵. All directional tests still
+pass.
+
+**The +0.127 → +0.057 claim, checked.** The pre-accounting-fix code (`cdafe29`) reproduces
++0.127. Its equilibrium is guess-invariant (relative wage difference 3 × 10⁻¹⁴): it had no
+foreign transfer, and because land rents and fixed costs leaked out of household income,
+it was determinate but ran an implied trade surplus of about 27% of gross output. It therefore
+cannot be rerun "with `nx_gdp = 0`". The comparable sequence is +0.127 (old accounts,
+determinate) → +0.104 (corrected accounts, balanced trade). The accounting corrections lower
+the effect by about 0.02. The remaining fall to +0.057 (0.047 of the 0.070 drop) was the
+indeterminate closure's selection.
+
+**Sensitivity to the trade-balance default** (from the referee report): an exogenous deficit
+of 5% or 10% of GDP moves the effect to +0.102 or +0.100. The insensitivity is itself a
+symptom. When exports are 80–95% of GDP, a 10-point swing in the deficit barely moves the real
+exchange rate.
+In an economy with Korea's 9% export share the closure would matter far more.
+
+**Sensitivity to the export demand elasticity.** External balance now pins the wage level
+through the elasticity of foreign demand for Korean exports. That elasticity is now a separate
+parameter, `sigma_x` (default σ = 4), and the headline depends on it heavily:
+
+| `sigma_x` | 2 | 4 (default) | 6 |
+|---|---|---|---|
+| 1985 heavy-mfg gross-output share effect | +0.021 | +0.103 | +0.137 |
+| 1985 heavy-mfg employment share effect | +0.017 | +0.092 | +0.117 |
+
+(Current calibration. σ_x = 6 needs solver damping 0.1; the default 0.25 cycles at t = 1.)
+
+With a low aggregate elasticity, the export expansion that HCI induces depresses its own terms
+of trade and the reallocation is small. `sigma_x` must be calibrated externally (§1.3), and
+the headline reported with its sensitivity to it.
 
 ### 2.2 The calibrated 1965 economy is not Korea
 
 | 1965 | model | data |
 |---|---|---|
-| Exports / GDP (= imports / GDP under balanced trade) | 0.95 | ~0.09 / ~0.16 |
-| Agriculture share of employment | 0.24 | ~0.59 |
-| Share outside "Rural" | 0.80 (L0 = 0.45; Rural falls from 0.55 to 0.20 within the first period) | ~0.32 urban |
-| Rural / urban real income | 1.20 | < 1 |
-| Farm output share of traditional (non-mechanised) technology | 0.00 | ~1 |
+| Exports / GDP (= imports / GDP under balanced trade) | 0.73 (0.82 before the ag recalibration, 0.95 before the nested choice) | ~0.09 / ~0.16 |
+| Agriculture share of employment (workers) | 0.11 (0.25 before the ag recalibration) | ~0.59 |
+| Agriculture share of value added | 0.12 (0.31 before) | ~0.38 |
+| Food imports / food expenditure | 0.58 | small (grain imports were mainly aid-financed; verify) |
+| Share outside "Rural" | 0.82 (L0 = 0.45; Rural falls from 0.55 to 0.18 within the first period) | ~0.32 urban |
+| Rural / urban equivalent income | 1.18 | < 1 |
+| Farm output share of traditional (non-mechanised) technology | 0.97 (calibrated; 0.00 before) | ~1 |
+
+*Measurement.* Employment counts workers: (variable + fixed-cost labour payments) / local
+wage, which sums to population. The earlier scorecard summed variable labour *payments*. It
+left out fixed-cost labour and over-weighted high-wage regions. On the pre-nesting code it gave
+23.5% for 1965 against 28.0% in workers. Real GDP is a chained Fisher double-deflated index
+(region–sector producer prices for output, local purchaser prices for intermediates). GDP over
+a consumption deflator, which the scorecard used before, is a purchasing-power measure. It is
+now reported separately as real consumption per capita.
 
 Why this matters for the macro story, beyond fit:
 
@@ -212,24 +280,26 @@ sector.
 
 | 1965 → 1985 | baseline | HCI package | data |
 |---|---|---|---|
-| real GDP per capita | ×1.135 | ×1.554 | ×~4 |
-| agriculture share of employment (pp) | −2 | −5 | −34 |
+| real GDP per capita (double-deflated) | ×1.118 | ×1.377 | ×~4 |
+| real consumption per capita | ×1.104 | ×1.405 | — |
+| agriculture share of employment, workers (pp) | −1.0 | −1.1 | −34 |
+| traditional share of farm output | 0.970 → 0.956 | 0.970 → 0.931 | ~1 → well below 1 |
 
 The baseline generates under a tenth of the observed log growth. Adding the full HCI package
-brings it to about a third, so policy accounts for roughly 70% of all the growth the model
-has. Every policy effect is measured against a Korea that does not grow. As a result, PIGL
+brings it to under a quarter, so policy accounts for roughly two-thirds of all the growth the
+model has. Every policy effect is measured against a Korea that does not grow. As a result, PIGL
 Engel effects, the value of mechanising, and the wage path that drives migration are all
 evaluated at 1965 income levels. The review's worry (§4.6) that HCI is over-credited is
 structural, not a calibration detail.
 
-### 2.4 The mechanisation and export margins are at a corner
+### 2.4 The mechanisation and export margins were not nested (fixed) and are at a corner (not fixed)
 
-Each cutoff is computed from its own zero-profit condition, and the cutoffs are never nested.
-Firms therefore export or mechanise without paying the entry cost whenever that secondary
-margin is more attractive than entry — a firm must be active before it can export or adopt.
-At the calibrated parameters this is the normal state:
+Each cutoff was computed from its own zero-profit condition, and the cutoffs were never nested.
+Firms therefore exported or mechanised without paying the entry cost whenever that secondary
+margin was more attractive than entry, although a firm must be active before it can export or
+adopt. At the calibrated parameters this was the normal state:
 
-| Agriculture, Rural region | 1965 | 1985 |
+| Agriculture, Rural region (pairwise cutoffs, before) | 1965 | 1985 |
 |---|---|---|
 | entry φ̄ / adoption φ̆ / export φ̃ | 2.80 / 1.91 / 1.50 | 2.89 / 1.91 / 1.52 |
 | traditional-tech share of farm output | 0.00 | 0.00 |
@@ -237,14 +307,186 @@ At the calibrated parameters this is the normal state:
 | exporters ÷ active farms (national) | 16–36 by region | same |
 | share of farm output exported | 0.64 | 0.60 |
 
-Services show the same pattern: 56–63% of output is exported, and exporters outnumber active
-firms 3–9×. This is where the 95% export ratio comes from.
+Services showed the same pattern: 56–63% of output was exported, and exporters outnumbered
+active firms 3–9×. That is where the 95% export ratio came from.
 
-The consequences are severe. Channel 3 (cutting F̆) acts on phantom farms; the 1965–85
-diffusion of power tillers from ≈0 cannot be generated; and the fixed-cost bill is wrong
-because firms in [φ̃, φ̄) and [φ̆, φ̄) pay F̃ or F̆ but never F. The joint entry–export–adoption
-choice could be solved properly, but §3.2 and §3.4 recommend removing the structure rather
-than repairing it.
+**Fixed: the nested choice.** Profits under every option are linear in φ^{σ−1}, so the firm
+picks the upper envelope of {exit, traditional, mechanised, mechanised exporter} (agriculture)
+or {exit, domestic, exporter} (other sectors). A firm must be active to adopt or export.
+Agricultural exporters use the mechanised technology, so they also adopt
+(`trade.nested_cutoffs`; `model.tex` eq. `nested`). The fixed-cost bill is now consistent:
+every exporter and adopter also pays F.
+
+**The calibration corner (now recalibrated).** With the earlier F̆ and F̃, the marginal
+entrant preferred to mechanise and export, so all three cutoffs coincided:
+
+| Agriculture, Rural region (nested, now) | 1965 | 1985 | 1985, HCI |
+|---|---|---|---|
+| entry = adoption = export cutoff | 2.04 | 2.05 | 1.96 |
+| adopters ÷ active farms; exporters ÷ active farms | 1 ; 1 | 1 ; 1 | 1 ; 1 |
+| traditional-tech share of farm output | 0.00 | 0.00 | 0.00 |
+| share of farm output exported | 0.55 | 0.52 | 0.43 |
+
+Services: every active firm exports, and 48–55% of output is exported. Channel 3 (cutting F̆)
+acted on real farms but could not produce the 1965–85 diffusion of power tillers from ≈0,
+because adoption was already universal in 1965.
+
+*Why.* A traditional segment needs F̆/F > Δ and (F̆ + F̃)/F > Δ + a_X/a_T, where
+Δ = (ξ c/c̆)^{σ−1} − 1 is the profit gain from mechanising (`model.tex` eq. `interior`). At the
+old calibration Δ = 0.54–0.72 against F̆/F = 0.25. Farm foreign demand (D̃ = 0.5) made the
+export market worth about twice the domestic one (a_X/a_T = 1.6–2.6), and exporting requires
+mechanising, so the second condition failed by a factor of 5–6. Mechanising was also a
+productivity gift: at ξ = 1 it *lost* money everywhere (c/c̆ ≈ 0.8, machines being expensive
+relative to wages), and only ξ = 1.5 made it pay.
+
+*Recalibration* (`scripts/calibrate_agriculture.py`, since superseded by §2.6):
+1. ξ = 1.2, close to the 1965–85 range of c̆/c (1.13–1.30). Mechanising then pays only once
+   wages rise and HCI machinery gets cheaper, which is the induced-innovation channel.
+2. Fixed costs are labour requirements (`fixed_costs_in_labor`), converted from the old
+   numeraire values at the 1965 mean wage, so they rise with wages.
+3. D̃_Agri = 0.220 and F̆_Agri = 4.28 (labour units) solve for a 1965 traditional share of
+   0.97 and farm exports of 1% of farm output (both placeholders to replace with data).
+
+| Agriculture (recalibrated) | 1965 | 1985 | 1985, HCI |
+|---|---|---|---|
+| traditional share of farm output | 0.970 | 0.956 | 0.931 |
+
+The corner is gone, and HCI speeds diffusion about 2.7× through higher rural wages, cheaper
+machinery and channel 3. The 1965 mechanised fringe is export-led, since mechanising for the
+home market alone does not yet pay. Diffusion is slow because the baseline has almost no wage
+growth (§2.3). It cannot approach the mid-1980s tiller stock until the model has a growth
+engine.
+
+*Side effects.* (i) Farm employment falls from 25% to 11% (data ~59%). Exports had been
+sustaining farm output, and food imports supply 58% of domestic food spending. Protecting food
+imports, as Korea's grain import controls did, is the natural next lever: doubling τ̃_Agri
+cuts the food import share to 13% and raises farm employment to 23%. The 1965 calibration
+would then need re-solving. (ii) Exports remain 73% of GDP, now driven by services and
+manufacturing; their foreign demand needs the same treatment. The durable fix for
+agriculture is still §3.4: competitive farms on observed land with a farm-size threshold.
+
+### 2.6 History-calibrated baseline: matching the structural transformation (2026-10-04)
+
+§2.2–2.4 describe the 3-sector economy, which could not deliver Korea's structural
+transformation: there was no growth engine, food was mostly imported, and urbanisation was a
+first-period jump. The baseline is now rebuilt around reproducing that transformation
+(`scripts/korea_baseline.py`; the §2.4 farm calibration script is superseded).
+
+*Structure.*
+- **Rice**: protected (import controls and, from 1969, procurement), so internationally
+  non-traded. It carries the mechanisation margin.
+- **OtherAg**: wheat, barley, feed grains and other farm output. It competes with imports at
+  world prices, so grain import dependence is an equilibrium outcome. It is not exported.
+- **Manufacturing**: traded, and the export sector.
+- **Services**: internationally non-traded.
+- **Growth engine**: sectoral TFP growth, plus growing foreign demand for manufactures.
+- **Population**: the 1965 population is made an equilibrium by inverting amenities
+  (`korea_growth.inversion`), so later urbanisation is generated by the model.
+
+*Calibration* (`scripts/calibrate_history.py`): 8 parameters are fitted to 8 targets. The
+parameters are TFP growth for manufacturing and for farm and services (tied together), the PIGL
+η and food shifter, the manufacturing final-demand weight, the level and growth of foreign
+demand, and an urban non-farm TFP premium. The targets come from `scripts/data_targets.py`, where
+each value carries its provenance. Only the manufacturing value-added shares (15% → 30%) and the
+1980 urban share (57%) are sourced in the repository, through the paper draft. The rest are the
+unverified §1.1 approximations.
+
+| 1965 → 1985 | data | model | |
+|---|---|---|---|
+| agriculture employment share (workers) | 0.59\* → 0.25\* | 0.605 → 0.229 | targeted |
+| manufacturing value-added share | 0.15 → 0.30 | 0.192 → 0.298 | targeted |
+| real GDP per capita (double-deflated) | ×4\* | ×4.00 | targeted |
+| exports / GDP | 0.09\* → 0.33\* | 0.078 → 0.330 | targeted |
+| urban share, 1980 | 0.57 | 0.547 | targeted |
+| urban share, 1985 | 0.65\* | 0.629 | untargeted |
+| agriculture value-added share | 0.38\* → 0.13\* | 0.595 → 0.239 | untargeted |
+| import share of other-farm demand | — | 0.095 → 0.764 | no data |
+| traditional share of rice output | ~1 → <1 | 1.000 → 0.515 | no data (F̆ assumed) |
+
+\* unverified approximation. PIGL shares stay in [0, 1] along the whole path, and the
+solution is guess-invariant (5 × 10⁻¹²).
+
+**What this establishes.** The model can generate a transformation of the observed size.
+Farm employment falls 38 points through Engel effects on rising income (η = 0.39), import
+competition in grains and rural–urban migration, while the economy grows fourfold and
+urbanises from 0.32 to 0.63. The calibrated growth rates are 4.1%/yr for manufacturing TFP and
+3.2%/yr for farm and services TFP. Foreign demand for manufactures grows 24%/yr, which with σ = 4
+takes exports from 8% to 33% of GDP.
+
+**Mechanical limits found.**
+1. **Agricultural productivity gap.** With one wage per region, farm value added per worker is
+   roughly equal to non-farm (rural wage 0.76 of urban in 1965). The unverified 0.38 / 0.59
+   value-added / employment shares imply farm value added per worker at about 0.43 of non-farm.
+   The integrated model could reach that only with a rural/urban wage ratio of about one-third.
+   **Addressed in the theory (2026-10-04):** sector-specific wages through nested occupation
+   choice (§2.7; `model.tex`, section "Occupation choice and sector-specific wages"). Not yet
+   recalibrated.
+2. **1965 manufacturing share** (0.19 vs 0.15). The manufacturing final-demand weight sits at its
+   lower bound (0.02). The stylised input–output coefficients alone over-produce manufacturing,
+   so they need replacing with Korean input–output tables.
+3. **No relative-price channel.** PIGL with a Cobb–Douglas price aggregator moves expenditure
+   shares only through real income. Farm productivity growth releases labour only through
+   income and import competition, not through the Baumol channel. If the data call for it,
+   non-homothetic CES (Comin–Lashkari–Mestieri) would add it.
+
+**HCI under this baseline.** The package now *lowers* the 1985 national manufacturing share
+(value added −0.013, employment −0.026) and raises services. Without the rural-services channel
+the manufacturing value-added effect is −0.004; without farm modernisation it is −0.007. So the
+sign comes from the baseline, not from one channel. Income gains go to non-traded services, and
+manufacturing has almost no domestic final demand (limit 2). The package was tuned for the
+3-sector economy and has not been re-tuned. Until the input–output structure comes from data,
+read the HCI aggregate effect as unresolved, not as a finding. The directional test for it is a
+strict expected failure.
+
+**Assumptions without data** (all in `scripts/korea_baseline.py`): rice is half of food demand;
+urban farm TFP is 0.4 of rural; the food asymptote α_food is 0.05; the 1965 city split is
+stylised; the rice mechanisation fixed cost is not identified; services TFP growth equals farm.
+`scripts/data_targets.MISSING` lists the data that would replace each one.
+
+### 2.7 Sector-specific wages (theory, 2026-10-04)
+
+Principle 3 (§3.3), without non-employment yet. Within each location, workers choose an
+occupation (farming, manufacturing, services) with taste shocks of dispersion 1/ε, nested
+inside the location choice (ν ≤ ε). Each occupation has its own wage, and b is a non-pecuniary
+value of the occupation (attachment to farming, barriers to leaving it). The full derivation is
+in `model.tex`: choice probabilities and inclusive value, labour-market clearing by
+occupation, exact PIGL aggregation over income groups, welfare, the integrated limit, and the
+wage-gap decomposition
+log(Y_A/Y_N) = (1/ε) log(L_A/L_N) − log(b_A/b_N).
+Rice and other crops are one occupation: they are products, not labour markets. Treating them
+as two would give farming double taste mass in the logit.
+
+*What it does in the Korea baseline.* This is an illustration, **not recalibrated**: the 1965
+amenities are re-inverted for each case, and every other parameter is the integrated-market
+calibration.
+
+| case | ag emp 65 | ag VA 65 | w_farm/w_nonfarm 65 | APG 65 | ag emp 85 | ag VA 85 | w_farm/w_nonfarm 85 | APG 85 |
+|---|---|---|---|---|---|---|---|---|
+| integrated (ε = ∞) | 0.605 | 0.595 | 0.827 | 0.958 | 0.229 | 0.239 | 0.868 | 1.053 |
+| ε = 10, b_farm = 1 | 0.561 | 0.584 | 0.951 | 1.100 | 0.219 | 0.236 | 0.905 | 1.103 |
+| ε = 5, b_farm = 1 | 0.530 | 0.578 | 1.051 | 1.214 | 0.218 | 0.236 | 0.908 | 1.107 |
+| ε = 5, b_farm = 1.5 | 0.627 | 0.610 | 0.802 | 0.930 | 0.314 | 0.268 | 0.676 | 0.803 |
+| ε = 5, b_farm = 2 | 0.680 | 0.617 | 0.653 | 0.758 | 0.399 | 0.297 | 0.545 | 0.638 |
+
+(APG = farm value added per worker over non-farm. The wage ratios are national,
+employment-weighted, so they include the rural/urban composition.)
+
+Three findings:
+1. **b = 1 is not neutral.** It implies equal occupation shares at equal pay, so a 60% farm
+   share needs a *higher* farm wage. The productivity gap needs b_farm > b_other. That is the
+   economic content of a farm wedge, and the decomposition prices it.
+2. **With a farm wedge, the gap appears and then widens** during the transformation (b_farm = 2:
+   relative farm wage 0.65 → 0.55, APG 0.76 → 0.64). Falling farm labour demand lowers the farm
+   wage faster than workers leave. The integrated model cannot produce this.
+3. **The wedge also slows the transformation.** Farm employment in 1985 is 0.40 rather than 0.23
+   at unchanged parameters. A recalibration would trade b_farm and ε off against the Engel
+   parameters, and identifying them separately needs farm and non-farm earnings data
+   (`scripts/data_targets.MISSING`).
+
+*Extensions noted in `model.tex`:*
+- Fréchet efficiency draws, i.e. selection (Lagakos–Waugh). PIGL aggregation stays closed-form
+  there, and it predicts different earnings changes for sector switchers.
+- Non-employment as an occupation.
 
 ### 2.5 Smaller specification issues that bite once the model grows and gets geography
 
@@ -268,21 +510,39 @@ than repairing it.
 
 - **Annual, 1962–1990** (starting after the 1962 currency reform and the First Five-Year Plan;
   1960–61 serve as pre-periods).
-- **Invert each year.** Recover productivities Ā_{ik,t}, amenities B_{i,t} and occupation
-  wedges b_{ik,t} so the model reproduces exactly the observed data. The data are township
-  population and employment by sector and status, county manufacturing (MMS), and national
-  aggregates. This is the standard QSE inversion (Allen–Arkolakis 2014; Redding–Rossi-Hansberg
-  2017). Under principle 2 it is exactly identified given elasticities and trade costs.
-  Township wages are not required; county MMS wages and provincial farm wages become
-  validation.
+- **Invert each year, once the inversion is shown to be identified.** The aim is to recover
+  productivities Ā_{ik,t}, amenities B_{i,t} and occupation wedges b_{ik,t} so the model
+  reproduces the observed data. The data are township population and employment by sector and
+  status, county manufacturing (MMS), and national aggregates. This is the standard QSE
+  inversion (Allen–Arkolakis 2014; Redding–Rossi-Hansberg 2017).
+
+  **The inversion as written is not identified.** Per township-year, the unknowns are K
+  productivities, K − 1 wedges (after normalisation) and one amenity, 2K in all. The
+  observables are population and K − 1 employment shares, K in all. In
+  π_{k|i} ∝ (b_ik w_ik)^ε, a higher A_ik raises w_ik and hence π_{k|i} exactly as a higher b_ik
+  does. Without wages, output, prices or trade flows, A and b cannot be separated. Before
+  `inversion.py` is built, write down the unknowns, observables, normalisations and
+  restrictions, and demonstrate identification analytically or by a numerical rank/recovery
+  exercise on synthetic data. Candidate restrictions are wedges common within county or
+  province, or constant over time up to a trend. Candidate additional data are county MMS
+  wages and value added, provincial farm wages, and crop output and prices. Wages then become
+  inversion inputs rather than validation.
 - **Structural event studies.** Treat the inverted fundamentals as outcomes. Regress them, in
   event-study form, on measured programme shocks: park groundbreakings, interchange openings,
   paving, reservoir completions, electrification, school openings. The model already accounts
   for endogenous responses such as migration and prices. What remains is each programme's
   *direct* effect on productivity or amenity, which is the elasticity the counterfactual
-  needs. (Caveat: inverted fundamentals absorb anything the model omits. Unless capital and
-  human capital are modelled — principle 5 — township "productivity" is TFP times factor
-  deepening.)
+  needs. Caveats: inverted fundamentals absorb anything the model omits. Unless capital and
+  human capital are modelled (principle 5), township "productivity" is TFP times factor
+  deepening. Regressions on inverted fundamentals are *not* causal policy effects by
+  themselves. They need the same credible assignment design as any event study, and their
+  standard errors must carry the inversion's uncertainty.
+- **Exact fit is not validation.** Anything used as an inversion input (township sectoral
+  employment, for instance) is fitted by construction, so its national sum cannot also
+  validate the model. Holding observed capital or schooling paths fixed while removing HCI
+  excludes policy effects that run through those paths. That is a *conditional* counterfactual
+  and must be labelled as such. A Shapley decomposition allocates interactions consistently
+  but resolves neither problem.
 - **Counterfactuals subtract measured shocks** from history, holding all other fundamentals at
   their inverted values, with exact hat algebra (Dekle–Eaton–Kortum 2008;
   Caliendo–Dvorkin–Parro 2019) so that few objects must be calibrated in levels.
@@ -383,12 +643,52 @@ $$
   micro-founded extensive margin.
 - **Why the distinction matters** (Bustos–Caprettini–Ponticelli 2016). Labour-saving change
   releases labour. Land-augmenting change can absorb it.
-- **Matsuyama in space — a sharp test of the roads × rural-transformation complementarity.**
-  In poorly connected (quasi-closed) townships, a land-augmenting shock releases labour through
-  the food-problem and Engel channels. In connected (open) townships it retains labour through
-  comparative advantage. So the sign of *reservoir × market access* on farm employment should
-  flip with connectivity (cf. Gollin–Rogerson 2014; Sotelo 2020; Foster–Rosenzweig 2004). It is
-  testable directly on the township panel with reservoir dates.
+- **Matsuyama in space, restated.** *Hypothesis:* agricultural productivity growth induces
+  commercialisation where access to crop demand dominates, and labour release where access to
+  non-farm opportunities dominates (cf. Matsuyama 1992; Gollin–Rogerson 2014; Sotelo 2020;
+  Foster–Rosenzweig 2004). A connectivity-dependent sign reversal of the farm-employment
+  response is one *derivable implication*, not the test itself. The model, with θ, φ and the
+  PIGL parameters estimated elsewhere, predicts an interaction coefficient of X. The data give
+  Y. That comparison is a held-out moment (§5). The earlier, sharper version ("the sign of
+  reservoir × market access should flip") conflated three forces:
+
+  1. *It is a demand-elasticity test, and gravity builds in the answer.* Under Armington or
+     Eaton–Kortum, a connected township's farm output faces demand elasticity θ. An isolated
+     one faces roughly the local PIGL food elasticity. Labour is retained iff the faced
+     elasticity exceeds one, so with θ ≈ 4–8 and food inelastic the flip holds by
+     construction. The data identify *where* on the access distribution the crossing occurs,
+     which disciplines φ and the Engel parameters, not "which Matsuyama regime Korea was in".
+     Matsuyama's open case also needs a homogeneous traded good, and Armington removes it.
+     With Q_i = (B_i T_i)^α L_Ai^{1−α} and competitive farms,
+     d log L_Ai / d log B_i = 1 + (1/α)(d log p_Ai / d log B_i − d log w_i / d log B_i). The sign
+     turns on the local crop-price response relative to the opportunity-wage response, and
+     connectivity moves both.
+  2. *Connectivity moves goods-market and labour-market access together.* Connected
+     townships also have non-farm jobs, cheaper machinery and lower migration costs.
+     Industrial pull releases farm labour, the opposite sign to comparative-advantage
+     retention. A null interaction is uninterpretable unless shift-share industrial pull is
+     controlled for separately, and even then the coefficient is a composite. This is the
+     argument for generating the coefficient from the model (indirect inference) rather than
+     reading a sign.
+  3. *Irrigation is not Hicks-neutral land augmentation.* Korean paddy irrigation plus
+     Tongil HYV raised labour per hectare through double cropping and transplanting intensity.
+     A labour-complementary shock retains labour everywhere, open or closed. Bustos–Caprettini–
+     Ponticelli rely on a soy-versus-maize contrast that Korean reservoirs lack. Either find a
+     cleanly land-augmenting shock or estimate the factor bias jointly with the openness
+     interaction.
+
+  Two reconciliations are needed. (i) *Rice-price support.* If procurement at a policy price
+  from 1969 insulated farm-gate prices from local supply, the isolated-township price channel
+  is weaker than the closed-economy benchmark. The price-policy block and the prediction must
+  be derived together. (ii) *Township retention is not aggregate retardation.* Local
+  agricultural retention can coexist with national industrialisation and higher welfare.
+  Matsuyama's growth conclusion needs manufacturing learning-by-doing in addition, so a
+  township employment response does not establish the aggregate growth effect.
+
+  *Why Korea is a good setting.* After 1969 the rice market was nationally closed and
+  policy-priced. A township was open to the nation while the nation was closed to the world, so
+  the "regime" is township-level by construction. The spatial version of the question is better
+  posed in Korea than in most settings.
 
 ### 3.5 Principle 5 — the growth engines the story cannot omit
 
@@ -429,6 +729,20 @@ programmes should matter most. That reconciles research_agenda's options (a) agg
 and (b) distribution: carry the growth engines so that the decomposition is credible, and make
 poverty and structural transformation the headline outcomes alongside GDP.
 
+### 3.7 Novelty
+
+Cheung and Yang, "Transportation Networks, Technology Adoption, and Structural
+Transformation" ([SSRN 4768158](https://ssrn.com/abstract=4768158), 2024; reportedly
+forthcoming in the *Journal of International Economics*, to verify), show for India that
+transport improvements lower non-labour input prices relative to wages and induce
+labour-saving agricultural technology and structural transformation. That overlaps directly
+with the roads → machinery → labour-release link in §1.2, so transport-induced mechanisation
+alone will not distinguish this project. The stronger contribution is to separately identify
+agricultural productivity shocks, industrial labour-demand shocks and connectivity, and to
+explain where their interaction produces commercialisation and where it produces labour
+release (§3.4). The Korean panel suits that unusually well. Whether it delivers depends on
+treatment variation and measurement of the mechanisms, not on how large the final model is.
+
 ---
 
 ## 4. What the township data does inside the model
@@ -458,8 +772,31 @@ Roles: **I** = inversion input; **E** = estimation moment; **S** = measured prog
 
 **Five designs the new data enables** — each estimates a model elasticity:
 
-1. **Reservoir completions** → the irrigation elasticity. Interacted with market access, this
-   is the Matsuyama sign test (§3.4).
+1. **Reservoir completions** → the irrigation elasticity and its heterogeneity (§3.4). The
+   reservoir × market-access interaction mixes the two mechanisms the paper should separate.
+   - *Separate access measures.* Estimate event-study responses by **predetermined** access to
+     crop markets and **predetermined** access to non-farm employment, measured separately.
+     Heterogeneity by initial access shows how effects differ across places. Identifying the
+     causal contribution of roads additionally needs credible variation in road access.
+   - *Outcomes that discriminate between channels.*
+
+     | Channel | Evidence to seek |
+     |---|---|
+     | Commercialisation | marketed output, sustained farm-gate prices, agricultural labour demand, land returns |
+     | Labour release | lower labour per hectare, mechanisation, movement into non-farm work or migration |
+     | Local demand spillovers | rural service employment following farm-income gains |
+
+     Farm employment alone cannot tell these apart. Measure levels, shares and labour
+     intensity separately, alongside population and commuting. Use the farm employment
+     *share* for the Matsuyama prediction, because migration contaminates levels.
+   - *Treatment.* Follow the irrigation command area and operational water delivery, not the
+     township containing the dam. Construction employment, associated roads, displacement and
+     downstream effects need explicit treatment. Neither completion dates nor engineering
+     suitability establishes exogeneity on its own.
+   - *Placebo.* Dry-field townships, where reservoirs matter less.
+   - *A positive interaction is not a sign reversal.* Show that the estimated irrigation
+     effect crosses zero within the observed support, with uncertainty bands. The employment
+     interaction does not identify complementarity in national welfare.
 2. **Annual paving and bridges, plus interchange openings** → the local-access and network
    trade-cost elasticities. This replaces the single 1970→90 long difference with dated
    responses and pre-trends.
@@ -488,8 +825,9 @@ Roles: **I** = inversion input; **E** = estimation moment; **S** = measured prog
 | ψ | the human-capital contribution | Mincer returns; enrolment responses to school openings |
 
 **Held out as untargeted validation:** the Figure 8 decile gradient; the 1979-cohort washout;
-the timing of the rural wage take-off; the rural–urban income V-shape; the national paths of
-agricultural employment and urbanisation, if they are not targeted. A cheap stress test is to
+the timing of the rural wage take-off; the rural–urban income V-shape; the reservoir ×
+access interaction coefficient (§3.4); the national paths of agricultural employment and
+urbanisation, *only* if the township series that sum to them are not inversion inputs (§3.1). A cheap stress test is to
 estimate on 1962–79 and predict 1980–90 from measured shocks alone. The 1980 combination of
 oil shock, political crisis and harvest failure is a natural out-of-sample test.
 
@@ -532,13 +870,19 @@ elasticities on the reduced-form coefficients, using the same estimators and sam
 
 ## 7. Staged build — each stage is independently useful
 
+The first version of this memo put the agriculture block at Stage 3, after occupation choice,
+capital, forward-looking migration and human capital. That delayed the mechanism behind §3.4
+until most of a large model existed. Revised order:
+
 | Stage | Content | Deliverable |
 |---|---|---|
-| **0 — now, no new data** | Closure fix ✅; macro scorecard ✅. Annual clock. Replace Melitz with gravity + sectoral external economies on employment density. Exogenous population growth. Exact hat-algebra formulation. Uniqueness and guess-invariance tests. A data schema (location × year × variable) with loaders, the boundary crosswalk, and a synthetic township panel for CI | A model that can ingest the panel |
-| **1 — first digitised waves** | Static model plus annual inversion on the township panel; occupation choice with non-employment; structural event studies for parks, interchanges, paving and reservoirs | "Where and when productivity and amenities changed, and which programmes moved them" — standalone |
-| **2** | Forward-looking migration (CDP); capital with an observed investment path and credit wedges; cohort human capital; demography | A model that reproduces 1962–90 by construction, driven by measured shocks |
-| **3** | Agriculture block (land types, farm-size threshold, irrigation, HYV, rice policy); poverty module | The rural-transformation decomposition |
-| **4** | Counterfactual battery; welfare and poverty incidence | The macro paper |
+| **0 — now, no new data** | Closure fix ✅; macro scorecard ✅. Measurement fixes ✅: employment in workers, double-deflated real GDP, gross-output / value-added / employment shares reported separately. Exact PIGL equivalent income for migration and welfare ✅. Nested entry–adoption–export choice ✅. Separate export demand elasticity `sigma_x` ✅. A data schema (location × year × variable) with loaders, the boundary crosswalk, and a synthetic township panel for CI | A current model whose reported numbers measure what their labels say |
+| **1 — small spatial agriculture model** | Agriculture (paddy and dry field, competitive farms, irrigation as an explicit factor-biased shock), non-farm production, land, goods trade and labour mobility. Derive the conditions for each employment response (§3.4), and the model-predicted reservoir × access coefficients | The commercialisation-versus-release prediction, with θ, φ and η taken from elsewhere |
+| **2 — reservoir event studies** | Audit irrigation exposure (command areas, water delivery); differentiated event studies by crop-market and non-farm access, with prices, wages and labour intensity (§4, design 1) | The empirical side of §3.4 — standalone |
+| **3 — expand the quantitative model** around the mechanisms that survive | Annual clock; gravity with external economies; inversion *after* identification is demonstrated (§3.1); occupation choice with non-employment; structural event studies for parks, interchanges and paving | "Where and when productivity and amenities changed, and which programmes moved them" |
+| **4** | Capital, schooling, demography, poverty distributions and the national growth decomposition, *when the chosen counterfactual requires them*; counterfactual battery; welfare and poverty incidence | The macro paper |
+
+Annual timing, competitive agriculture and a simpler trade block are sensible from Stage 1.
 
 **Engineering notes.**
 
@@ -547,9 +891,10 @@ elasticities on the reduced-form coefficients, using the same estimators and sam
   `decompose.py` (Shapley) and `data/` (schema, crosswalk, loaders) are added.
 - **Solver.** Use Newton–Krylov or Anderson acceleration, or JAX with autodiff for the
   estimation gradients. Year-by-year inversions run in parallel.
-- **Tests.** Replace the directional "calibration" tests with (i) exact reproduction of the
-  observed data by the inversion, (ii) invariance to the initial guess, and (iii) scorecard
-  moments that are *reported*, not asserted.
+- **Tests.** Replace the directional "calibration" tests with (i) recovery of known
+  fundamentals from synthetic data by the inversion (an identification test, not just exact
+  fit), (ii) invariance to the initial guess, and (iii) scorecard moments that are
+  *reported*, not asserted.
 
 ---
 
@@ -601,6 +946,10 @@ elasticities on the reduced-form coefficients, using the same estimators and sam
 
 - `python scripts/macro_scorecard.py` prints the macro scorecard, the first-period population
   jump, the cutoff-ordering violation and the guess-sensitivity check under the current code.
+- `python scripts/simulate_policy_shock.py` prints the 1985 policy effects on gross-output,
+  value-added and employment shares side by side.
+- The +0.127 check: run the policy simulation's `calibration_moments` on commit `cdafe29`,
+  and the guess-sensitivity check there.
 - The indeterminacy under the old closure: check out `bce51c7`, then solve
   `solve_static_equilibrium` for `build_baseline_inputs()` at t = 0 from
   `initial_guess(...)` with `w`, `r` and `E` scaled by 0.5 and 2.0, and compare `eq.w`.
@@ -613,7 +962,8 @@ Adão, Arkolakis & Esposito (2019) General equilibrium effects in space · Allen
 (2014 QJE) · Allen, Arkolakis & Li (2020 WP) uniqueness in network models · Andrews, Gentzkow
 & Shapiro (2017 QJE) · Bai (1982, *Developing Economies*) Korea's turning point · Buera,
 Kaboski & Townsend (2023 JEL) From micro to macro development · Buera & Shin (2013 JPE) ·
-Bustos, Caprettini & Ponticelli (2016 AER) · Caliendo, Dvorkin & Parro (2019 ECMA) · Dekle,
+Bustos, Caprettini & Ponticelli (2016 AER) · Cheung & Yang (2024, SSRN 4768158) Transportation
+networks, technology adoption, and structural transformation · Caliendo, Dvorkin & Parro (2019 ECMA) · Dekle,
 Eaton & Kortum (2008) · Dinkelman (2011 AER) · Donaldson (2018 AER) · Budí-Ors & Pijoan-Mas
 (WP) Macroeconomic development, rural exodus, and uneven industrialisation · Eckert & Peters
 (WP) Spatial structural change · Fan, Peters & Zilibotti (2023 ECMA) · Foster & Rosenzweig (2004

@@ -169,24 +169,35 @@ separable value
   - \underbrace{\log \delta_{od,t}}_{\text{migration cost}} ,
   \label{eq:Wod}
 \end{equation}
-where $\mathcal{Y}_{d,t}>0$ is a money-metric real-income index for destination $d$ (the
+where $\mathcal{Y}_{d,t}\ge 0$ is a money-metric real-income index for destination $d$ (the
 level of income, at a fixed reference price vector, that delivers the household's
 attained utility). Since PIGL utility is defined only up to affine transformations,
 migration elasticities must be built on this expenditure-function-based measure rather
 than on the cardinal level $V_d$; that is what removes the cardinalization dependence the
-referee flags. Operationally we use the log real-income index
+referee flags. We use the exact PIGL equivalent income at a fixed reference price vector
+$P^0$, obtained by inverting $V$ at $P^0$. With $\mathcal{P}_0=\prod_j (P^0_j)^{\alpha_j}$ and
+$z_0=\sum_j v_j\log P^0_j$,
 \begin{equation}
-  \log \mathcal{Y}_{d,t}
-  = \log\!\left(\frac{y^{pc}_{d,t}}{\mathcal{P}_{d,t}}\right)
-  - \sum_{j} v_j \log P_{djt},
+  \mathcal{Y}_{d,t}
+  = \mathcal{P}_0\,\bigl[\eta\,(V_{d,t}+z_0)\bigr]^{1/\eta},
+  \qquad
+  \mathcal{Y}_{d,t}\xrightarrow[\eta\to 0]{}\mathcal{P}_0\,\exp(V_{d,t}+z_0),
   \label{eq:realincome}
 \end{equation}
-which is the money-metric welfare of the PIGL system in the $\eta\to 0$ (log) case and a
-monotone transform of $V_{d,t}$ in general; it is finite and well-defined for all
-$y^{pc}_{d,t}>0$.
-% [REVIEW FLAG \S2.3] Eq. (realincome) is the exact money metric only in the log-preference
-% case. For general eta the exact PIGL expenditure function should replace it (appendix
-% derivation, inheriting Boppart 2014 regularity conditions). Flagged as a to-derive item.
+which is a strictly increasing transform of $V_{d,t}$ for every $\eta$, so migration and
+welfare rank destinations exactly as indirect utility does. The code takes $P^0=\mathbf 1$
+(the foreign numeraire), so $\mathcal{P}_0=1$ and $z_0=0$. If $V_{d,t}+z_0\le 0$, utility is
+below what any positive income attains at $P^0$ and $\mathcal{Y}_{d,t}=0$. With
+$x=y^{pc}/\mathcal{P}$ and $z=\sum_j v_j\log P_{dj}$, the income elasticity is
+$\partial\log\mathcal{Y}/\partial\log x = x^{\eta}/(x^{\eta}-\eta(z-z_0))$, which equals one
+only when $z=z_0$ or $\eta\to0$.
+
+The previous draft used $\log\mathcal{Y}=\log(y^{pc}/\mathcal{P})-\sum_j v_j\log P_{dj}$. That
+is the $\eta\to0$ limit of \eqref{eq:realincome}, but for $\eta\ne0$ it is \emph{not} a
+monotone transform of $V$ when $z$ varies across destinations, and its unit income
+elasticity gives $\nu$ a different interpretation (review of the fresh-look memo, \S2.3). In
+the current calibration both indices rank regions identically and the headline numbers move by
+less than $10^{-5}$.
 
 \paragraph{Choice probabilities and population dynamics.} With Gumbel shocks the
 destination probabilities are the standard logit
@@ -203,6 +214,140 @@ index $\mathcal{Y}_{d,t}$ replaces the sign-ambiguous $V_{d,t}$}. Population evo
 \begin{equation}
   L_{d,t} = \sum_{o \in \Nreg} \mu_{od,t}\, L_{o,t-1}.
 \end{equation}
+
+\subsection{Occupation choice and sector-specific wages}\label{sec:occupation}
+\paragraph{Why.} With one wage per location, value added per worker in agriculture and
+outside it differ only through factor shares. If $\lambda^{k}_{d}$ is the labour share of
+sector-$k$ value added (labour payments, including the fixed-cost bill, over value added),
+the agricultural productivity gap in location $d$ is
+\begin{equation}
+  \mathrm{APG}_{d}\equiv\frac{\mathrm{VA}^{A}_{d}/L^{A}_{d}}{\mathrm{VA}^{N}_{d}/L^{N}_{d}}
+  =\frac{w^{A}_{d}/\lambda^{A}_{d}}{w^{N}_{d}/\lambda^{N}_{d}},
+  \label{eq:apg}
+\end{equation}
+and an integrated local labour market imposes $w^{A}_{d}=w^{N}_{d}$, so
+$\mathrm{APG}_{d}=\lambda^{N}_{d}/\lambda^{A}_{d}$. That is near or above one, because land
+takes a large share of farm value added. The large gaps measured in poor economies
+(Gollin--Lagakos--Waugh 2014) can then come only from spatial wage differences. This
+subsection lets wages differ across occupations within a location. The integrated market is a
+limiting case.
+
+\paragraph{Occupations.} Sectors map onto occupations, $j\mapsto o(j)\in\mathcal{O}$. In the
+Korea application, farming (rice and other crops), manufacturing and services are the
+occupations: rice and other crops are products that the same farmers grow, not separate labour
+markets. Each location--occupation pair has its own wage $w_{d\kappa,t}$, and a firm in sector
+$j$ in $d$ pays $w_{d,o(j),t}$, both in its unit cost and for its fixed costs.
+
+\paragraph{Shock structure.} An agent in origin $o$ chooses a location $d$ and an occupation
+$\kappa$ to maximise
+\begin{equation}
+  W_{od,t}+\log b_{d\kappa,t}+\log\mathcal{Y}_{d\kappa,t}+\upsilon_{i,d\kappa},
+\end{equation}
+where $W_{od,t}$ collects the amenity, congestion and migration-cost terms of \eqref{eq:Wod}
+(without the real-income term), $\mathcal{Y}_{d\kappa,t}$ is the equivalent income
+\eqref{eq:realincome} of per-worker income $y_{d\kappa,t}$ at location-$d$ prices, and
+$b_{d\kappa,t}>0$ is the non-pecuniary value of occupation $\kappa$ in $d$: attachment to
+one's land and to farm life, information or entry barriers, disamenity. The taste shocks
+$\upsilon$ follow the generalised extreme value distribution with generating function
+$G(x)=\sum_{d}\bigl(\sum_{\kappa}x_{d\kappa}^{\varepsilon}\bigr)^{\nu/\varepsilon}$. That is a
+nested logit with locations in the outer nest (dispersion $1/\nu$) and occupations in the inner
+nest ($1/\varepsilon$). It is consistent with random utility if and only if
+$\nu\le\varepsilon$ (McFadden 1978). Moving across sectors within a location is easier than
+moving across locations.
+
+\paragraph{Choice probabilities.} The probability of choosing occupation $\kappa$ given location
+$d$, and the occupation inclusive value of $d$, are
+\begin{equation}
+  \pi_{\kappa\mid d,t}=\frac{(b_{d\kappa,t}\,\mathcal{Y}_{d\kappa,t})^{\varepsilon}}
+  {\sum_{\kappa'}(b_{d\kappa',t}\,\mathcal{Y}_{d\kappa',t})^{\varepsilon}},
+  \qquad
+  \Phi_{d,t}=\Bigl[\sum_{\kappa}(b_{d\kappa,t}\,\mathcal{Y}_{d\kappa,t})^{\varepsilon}\Bigr]^{1/\varepsilon}.
+  \label{eq:occshare}
+\end{equation}
+Location choice is \eqref{eq:mu} with $\Phi_{d,t}$ in place of $\mathcal{Y}_{d,t}$:
+$\mu_{od,t}\propto(\bar V_{d,t}L_{d,t-1}^{\iota}\Phi_{d,t}/\delta_{od,t})^{\nu}$. The joint
+probability is $\mu_{od,t}\pi_{\kappa\mid d,t}$. $\Phi_{d,t}$ contains the option value of
+occupation choice. Its level depends on how many occupations there are
+($\Phi=\mathcal{Y}\,|\mathcal{O}|^{1/\varepsilon}$ when all are identical), which amenities
+absorb.
+
+\paragraph{Incomes, labour markets and demand.} Per-worker income in occupation $\kappa$ in $d$ is
+\begin{equation}
+  y_{d\kappa,t}=\varsigma_{t}\Bigl[(1-\bar\tau_t+\bar\pi_t)\,w_{d\kappa,t}+\frac{r_{d,t}H_{d,t}}{L_{d,t}}\Bigr],
+\end{equation}
+with land rents shared per capita within the location and $\varsigma_t$ the scale that
+distributes the foreign transfer. Labour supply is $L_{d\kappa,t}=\pi_{\kappa\mid d,t}L_{d,t}$.
+Each location--occupation labour market clears:
+\begin{equation}
+  w_{d\kappa,t}\,L_{d\kappa,t}=\sum_{j:\,o(j)=\kappa}\Bigl[(1-\beta_{dj,t})\gamma_{dj,t}\,TFC_{dj,t}+\Phi^{F}_{dj,t}\Bigr],
+  \label{eq:occclear}
+\end{equation}
+with the mechanised-technology split for agriculture as in \S\ref{sec:factor}. PIGL demand
+aggregates exactly over the finite set of income groups:
+$E^{F}_{dj,t}=\sum_{\kappa}\psi_{j}(y_{d\kappa,t},P_{d,t})\,y_{d\kappa,t}L_{d\kappa,t}$.
+Because demand is non-homothetic, income differences between farm and non-farm households
+change the composition of local demand, not just its level.
+
+\paragraph{Welfare.} Expected utility by origin is \eqref{eq:welfare} built on the location
+values with $\Phi_{d,t}$, and
+$\partial\,\mathbb{E}U_{o,t}/\partial\log\mathcal{Y}_{d\kappa,t}=\mu_{od,t}\,\pi_{\kappa\mid d,t}$.
+
+\paragraph{Properties.}
+\begin{enumerate}[leftmargin=1.5em]
+\item \emph{Integrated limit.} As $\varepsilon\to\infty$ with $b_{d\kappa}=1$, every
+      occupation with positive employment pays the same equivalent income, hence the same
+      wage, and the model reduces to one wage per location. With a single occupation the two
+      models coincide for any $\varepsilon$.
+\item \emph{Wage-gap decomposition.} Taking ratios in \eqref{eq:occshare},
+      \begin{equation}
+        \log\frac{\mathcal{Y}_{dA,t}}{\mathcal{Y}_{dN,t}}
+        =\frac{1}{\varepsilon}\log\frac{L_{dA,t}}{L_{dN,t}}-\log\frac{b_{dA,t}}{b_{dN,t}}
+        \label{eq:gapdecomp}
+      \end{equation}
+      (exact in equivalent incomes; in wages to first order). The gap has two terms. One is a
+      supply term: with finite $\varepsilon$, an occupation employing more workers than its
+      taste mass must pay more. The other is the non-pecuniary wedge. $b=1$ is therefore
+      \emph{not} frictionless: it means equal pay would produce equal occupation shares. A
+      large farm share at a lower farm wage requires $b_{A}>b_{N}$, i.e. attachment to
+      farming or barriers to leaving it (the preference and barrier wedges of
+      Hsieh--Hurst--Jones--Klenow 2019).
+\item \emph{Sectoral labour supply.} Holding $L_{d}$ and other incomes fixed,
+      $\partial\log L_{d\kappa}/\partial\log y_{d\kappa}=\varepsilon\,(1-\pi_{\kappa\mid d})\,e^{\mathcal{Y}}_{d\kappa}$,
+      where $e^{\mathcal{Y}}$ is the income elasticity of equivalent income (\S\ref{sec:migration}).
+      $\varepsilon$ governs how fast labour leaves farming when the farm wage falls.
+\item \emph{The gap moves with structural change.} When farm labour demand falls (Engel
+      effects, import competition, labour-saving mechanisation), finite $\varepsilon$ keeps
+      workers in farming at a falling relative wage. By \eqref{eq:apg} the gap widens until
+      occupation switching and migration catch up. With an integrated market the farm wage
+      cannot fall relative to the local non-farm wage at all.
+\item \emph{Taste heterogeneity versus selection on efficiency.} The alternative is a Roy
+      model with Fr\'echet efficiency draws $z\sim$ Fr\'echet$(\varepsilon)$ and choice of
+      $\max_\kappa b_{d\kappa}w_{d\kappa}z_{\kappa}$ (Lagakos--Waugh 2013; Hsieh et al.\ 2019).
+      There, average earnings in occupation $\kappa$ are proportional to $\Phi_{d}/b_{d\kappa}$:
+      with $b=1$ earnings per worker are equal across occupations, and selection lowers
+      measured farm productivity. Here efficiency is homogeneous, so measured gaps are wage
+      differences: compensating differentials plus a finite supply elasticity. We use the
+      taste version because PIGL demand then aggregates over finitely many income groups.
+      The Fr\'echet version is a tractable extension: PIGL needs
+      $\mathbb{E}[y^{1-\eta}]=s^{1-\eta}\,\Gamma(1-(1-\eta)/\varepsilon)$ over a Fr\'echet
+      income distribution with scale $s$. The two predict different earnings changes for
+      workers who switch sector, which is what panel evidence on the gap uses (e.g.\ Hamory,
+      Kleemans, Li and Miguel 2021).
+\item \emph{Identification.} $\varepsilon$ comes from the response of township sectoral
+      employment to sector-specific labour-demand shocks (shift-share), holding population.
+      Given $\varepsilon$, $b$ comes from within-location earnings gaps via
+      \eqref{eq:gapdecomp}. With sectoral wage data, $b$ and sectoral productivity are
+      separately identified. Without wages they are not (the inversion problem noted in the
+      referee report on the fresh-look memo, \S5).
+\end{enumerate}
+
+\paragraph{Computation.} Inverting labour supply, $w=\text{payments}/(\pi L)$, gives a
+fixed-point map with slope of order $-\varepsilon$. The code instead sets the location wage
+level so that total labour clears ($\sum_\kappa w_{d\kappa}L_{d\kappa}$ equals total labour
+payments), and moves relative wages by a log-Newton step on excess demand,
+$\Delta\log w_{d\kappa}=\log(D_{d\kappa}/S_{d\kappa})/(1+\varepsilon)$. This step is exact when
+$\mathcal{Y}$ is linear in income. At a fixed point every occupation market clears, and as
+$\varepsilon\to\infty$ relative wages stay at one.
 
 \subsection{Non-homothetic final demand}
 Expenditure shares in destination $d$ are
@@ -330,10 +475,44 @@ The export cutoff is
 where $\chi_{oj,t} = (\breve c_{oj,t}/c_{oj,t}) / \xi$ for agriculture and
 $\chi_{oj,t} = 1$ otherwise.
 
-\paragraph{Cutoff ordering (review \S2.2).} For agriculture the export term carries
+The three formulas above are \emph{pairwise} thresholds: each equates one option's
+incremental profit to its incremental fixed cost, holding the others fixed. They are the
+equilibrium cutoffs only when they are ordered $\bar\phi\le\breve\phi\le\tilde\phi$. The code
+now solves the nested choice directly (next paragraph); the pairwise formulas remain the
+interior solution.
+
+\paragraph{Nested entry, adoption and export choice (implemented).} Write
+$x=\phi^{\sigma-1}$. Every option's profit is linear in $x$: with
+$K_{oj}=\bigl(\tfrac{\sigma}{\sigma-1}(1-s_{oj})\bigr)^{1-\sigma}$,
+\begin{align*}
+  a^{T}_{oj} &= \tfrac{1}{\sigma}K_{oj}\,(A_{oj}f_{oj}/c_{oj})^{\sigma-1} S_{oj}, &
+  a^{M}_{oj} &= \tfrac{1}{\sigma}K_{oj}\,(A_{oj}f_{oj}\xi/\breve c_{oj})^{\sigma-1} S_{oj}, \\
+  a^{X}_{oj} &= \tfrac{1}{\sigma}K_{oj}\,\bigl(A_{oj}f_{oj}\chi^x_j/(\tilde\tau_{oj}c^x_{oj})\bigr)^{\sigma-1} D^{x}_{j}.
+\end{align*}
+A firm must be active (pay $F$) to adopt or export. In agriculture, exporters use the
+mechanised technology (the $\chi$ and $c^x=\breve c$ terms), so exporting also requires
+adoption. The agricultural options are exit $(0,0)$, traditional $(a^T,F)$, mechanised
+$(a^M,F+\breve F)$ and mechanised exporter $(a^M+a^X,F+\breve F+\tilde F)$, each a (slope,
+fixed cost) pair. Other sectors have exit, domestic $(a^T,F)$ and exporter $(a^T+a^X,F+\tilde F)$.
+The firm picks the upper envelope. Because slopes and costs rise together, the chosen option
+index is nondecreasing in $x$, and ``choose option $k$ or higher'' is $x\ge X_k$, with
+\begin{equation}
+  X_k=\min_{k'\ge k}\;\max_{i<k'}\frac{c_{k'}-c_i}{a_{k'}-a_i},
+  \label{eq:nested}
+\end{equation}
+the ratio being $+\infty$ when $a_{k'}\le a_i$. Then $\bar\phi=\max\{1,X_1^{1/(\sigma-1)}\}$, and
+$\breve\phi$ and $\tilde\phi$ follow from $X_2$ and $X_3$ in the same way. When the pairwise thresholds are
+ordered, \eqref{eq:nested} returns them. When they are not, the marginal entrant also adopts
+and/or exports, the entry cutoff falls, and the higher cutoffs coincide with it. The ordering
+$\bar\phi\le\breve\phi\le\tilde\phi$ then holds by construction, exporters and adopters are subsets of
+active firms, and every firm that adopts or exports pays $F$ as well
+(\texttt{trade.nested\_cutoffs}).
+
+\paragraph{Cutoff ordering (review \S2.2; superseded).} The paragraph below records the
+problem as originally diagnosed. For agriculture the export term carries
 $\chi=(\breve c/c)/\xi$, i.e.\ the export cutoff is written as though every exporter
-already operates the mechanized technology, yet nothing in the current implementation
-enforces $\tilde\phi_{oj,t}\ge \breve\phi_{oj,t}$. With cheap exporting or expensive
+already operates the mechanized technology, yet nothing in the previous implementation
+enforced $\tilde\phi_{oj,t}\ge \breve\phi_{oj,t}$. With cheap exporting or expensive
 adoption the model can therefore manufacture ``mechanized exporters'' below the adoption
 cutoff --- firms that never paid $\breve F$ and are simultaneously counted as traditional
 producers domestically. Two coherent resolutions:
@@ -344,12 +523,31 @@ producers domestically. Two coherent resolutions:
       (exporting raises the return to adopting, a genuine complementarity) rather than
       pricing the two margins as if independent.
 \end{enumerate}
-We adopt (1) as the near-term fix and record the ordering as an equilibrium restriction in
-\S\ref{sec:restrictions}; (2) is a Phase-2 modeling upgrade.
-% [REVIEW FLAG \S2.2] Resolution (1) presumes the ordering holds at the calibrated
-% parameters. IMPLEMENTED as a post-solution diagnostic (checks.cutoff_ordering_violation);
-% it may fail for some
-% policy configurations, in which case (2) is required. Flagged.
+Resolution (2) is now implemented as the nested choice \eqref{eq:nested}. (1) was not
+enough: at the calibrated parameters the pairwise thresholds satisfied
+$\tilde\phi<\breve\phi<\bar\phi$ everywhere.
+% [REVIEW FLAG \S2.2] RESOLVED by the nested choice. Under the earlier calibration
+% (xi=1.5, Dtilde_Agri=0.5) all three agricultural cutoffs coincided and the traditional
+% technology had zero output share. The policy calibration now sets xi=1.2, fixed costs in
+% labour units, and calibrates Dtilde_Agri and Fbreve_Agri to a 1965 traditional share of
+% 0.97 and farm exports of 1% of farm output (scripts/calibrate_agriculture.py).
+
+\paragraph{When is the traditional margin interior?} With options ordered as above, a
+traditional segment exists iff the marginal entrant prefers the traditional option to
+mechanising and to mechanised exporting:
+\begin{equation}
+  \frac{\breve F}{F} > \Delta_{oj},
+  \qquad
+  \frac{\breve F+\tilde F}{F} > \Delta_{oj}+\frac{a^{X}_{oj}}{a^{T}_{oj}},
+  \qquad
+  \Delta_{oj}\equiv\Bigl(\xi\,\frac{c_{oj}}{\breve c_{oj}}\Bigr)^{\sigma-1}-1 .
+  \label{eq:interior}
+\end{equation}
+$\Delta$ is the proportional variable-profit gain from mechanising. It rises with
+$w/P_{\mathrm{HeavyMnf}}$ because the mechanised technology substitutes machinery for
+labour, which is the induced-innovation channel. With $\xi$ close to the range of
+$\breve c/c$, adoption turns on as wages rise and machinery gets cheaper, rather than being
+universal from the start.
 
 \subsection{Productivity aggregates}
 An adopter with idiosyncratic draw $\phi$ produces with effective productivity
@@ -426,6 +624,25 @@ Export revenue is
   \tilde D_{j,t},
 \end{equation}
 where $c^x_{oj,t} = \breve c_{oj,t}$ for agriculture and $c^x_{oj,t} = c_{oj,t}$ otherwise.
+
+\paragraph{Aggregate export demand elasticity.} Above, $\tilde D_{j,t}$ is the demand shifter
+when foreign buyers substitute Korean varieties for foreign goods at $\sigma$. With a balanced
+(or pinned) trade balance, external balance determines the wage level through this elasticity,
+so it should be calibrated externally, not tied to domestic substitution. Foreign buyers
+substitute among Korean export varieties at $\sigma$, so markups are unchanged. They substitute
+between the Korean bundle and foreign goods at $\sigma_x$. The effective shifter is
+\begin{equation}
+  D^{x}_{j,t} = \tilde D_{j,t}\,\bigl(P^{X}_{j,t}/\tilde p_{j,t}\bigr)^{\sigma-\sigma_x},
+  \qquad
+  \bigl(P^{X}_{j,t}\bigr)^{1-\sigma}=\sum_o M_{j,t}\Bigl(\tfrac{\sigma}{\sigma-1}(1-s_{oj,t})\tilde\tau_{oj,t}\Bigr)^{1-\sigma}\bigl(\tilde Z_{oj,t}/c^x_{oj,t}\bigr)^{\sigma-1},
+  \label{eq:sigmax}
+\end{equation}
+and $D^{x}_{j,t}$ replaces $\tilde D_{j,t}$ in the export cutoff and in $R^{x}$. Aggregate
+exports are then $\tilde D_{j,t}\,\tilde p_{j,t}^{\sigma_x-\sigma}(P^{X}_{j,t})^{1-\sigma_x}$,
+with elasticity $\sigma_x$. Because $P^X$ depends on the export cutoffs,
+\eqref{eq:sigmax} is a scalar fixed point per sector. It is unique for $\sigma_x<\sigma$ and
+is solved inside the trade block. The default $\sigma_x=\sigma$ gives $D^x=\tilde D$.
+
 Gross output is
 \begin{equation}
   Y_{oj,t} = R^{dom}_{oj,t} + R^{x}_{oj,t}.
@@ -621,6 +838,11 @@ foreign transfer equals $\mathrm{IM}_t-\mathrm{EX}_t$ at any equilibrium, so tre
 transfer as whatever the current allocation implies drops \eqref{eq:tradebalance}. It then
 leaves the domestic price level relative to the numeraire, and hence the trade deficit and
 real income, undetermined.
+The transfer is \emph{consumed}: it is distributed proportionally to income and spent
+on final goods. This is a placeholder. Korea's foreign saving in the 1960s and 1970s financed
+capital formation, so once capital enters the model the current-account deficit belongs in
+the investment identity. A surplus target larger than pre-transfer household income is
+infeasible, and the code raises an error rather than flooring the transfer.
 % [REVIEW FLAG \S1.5] IMPLEMENTED: the code sets T = -NX*, NX* = nx_gdp_t * GDP (default 0,
 % balanced trade), distributed proportional to income (equilibrium.py). The earlier closure
 % T = IM - EX (at the current guess) admitted a continuum of equilibria indexed by the trade
@@ -673,9 +895,10 @@ measure. Aggregate welfare is the population-weighted sum $\sum_o L_{o,t-1}\,\ma
 distributional incidence --- welfare by origin region, and by landowner versus worker and
 by income level (through the PIGL shares) --- is the object the paper is built to deliver,
 and is where this framework improves on aggregate HCI evaluations.
-% [REVIEW FLAG \S3.9] The exact money-metric for general eta (\S2.3 flag) feeds directly into
-% this welfare number; the two must use the same expenditure function. Deriving both is a
-% Phase-1 theory deliverable.
+Migration shares and welfare are built from the same values $W_{od,t}$, so
+$\partial\,\mathbb{E}U_{o,t}/\partial W_{od,t}=\mu_{od,t}$
+(\texttt{preferences.expected\_utility}; tested).
+% [REVIEW FLAG \S3.9] RESOLVED: both use the exact PIGL equivalent income (eq. realincome).
 
 \section{Static equilibrium}
 Given $L_{t-1}$ and exogenous period-$t$ fundamentals, a static equilibrium is a tuple
@@ -688,9 +911,12 @@ such that (review \S7.6, a self-contained definition):
 \begin{enumerate}[leftmargin=1.5em]
 \item \textbf{Migration and population.} $\mu_{od,t}$ solves \eqref{eq:mu} given
       $(w,P,\bar\tau,\bar\pi,r,H)$ through disposable income \eqref{eq:ypc} and the
-      real-income index \eqref{eq:realincome}, and $L_{d,t}=\sum_o\mu_{od,t}L_{o,t-1}$.
+      real-income index \eqref{eq:realincome}, and $L_{d,t}=\sum_o\mu_{od,t}L_{o,t-1}$. With
+      occupation choice, the location term is the inclusive value $\Phi_{d,t}$ and
+      $L_{d\kappa,t}=\pi_{\kappa\mid d,t}L_{d,t}$ \eqref{eq:occshare}.
 \item \textbf{Final demand.} $E^{F}_{dj,t}=\psi_{dj,t}\,y^{pc}_{d,t}L_{d,t}$ with the
-      PIGL shares $\psi_{dj,t}$.
+      PIGL shares $\psi_{dj,t}$; with occupation choice, summed over the occupation income
+      groups.
 \item \textbf{Firm behavior.} Cutoffs $\bar\phi,\breve\phi,\tilde\phi$, productivity
       aggregates $Z,\breve Z,\tilde Z$, price indices $P_{djt}$, and revenues
       $R^{trad},R^{new},R^{x}$ satisfy the production, cutoff, price-index, and revenue
@@ -700,7 +926,8 @@ such that (review \S7.6, a self-contained definition):
       with intermediate demand built from $TFC$.
 \item \textbf{Factor markets.} $w_{o,t}$ and $r_{o,t}$ satisfy the labor- and
       land-payment equations of \S\ref{sec:factor} (factor income $=$ true factor cost
-      $TFC$ plus, for labor, the fixed-cost bill $\Phi^{F}_o$).
+      $TFC$ plus, for labor, the fixed-cost bill $\Phi^{F}_o$). With occupation choice, each
+      location--occupation market clears at its own wage \eqref{eq:occclear}.
 \item \textbf{Government and rebate.} $\bar\tau_t$ and $\bar\pi_t$ satisfy the budget
       formulas of \S\ref{sec:gov} (subsidy outlay $\sum s\,TFC$, infrastructure buying goods).
 \item \textbf{Trade balance.} $\mathrm{EX}_t-\mathrm{IM}_t=\mathrm{NX}^{\star}_t$
@@ -766,10 +993,12 @@ convergence to the genuine fixed point across these kinks rather than to a proje
       \eqref{eq:TFC}).
 \item \textbf{PIGL regularity (new, review \S7.3):} $\eta>0$, $v_{\mathrm{Agri}}>0$, and the
       income range keeps every share $\psi_{dj,t}\in[0,1]$ at the solution.
-\item \textbf{Cutoff ordering (new, review \S2.2):} in agriculture,
+\item \textbf{Cutoff ordering (review \S2.2):} in agriculture,
       $\bar\phi_{oj,t}\le\breve\phi_{oj,t}\le\tilde\phi_{oj,t}$, so that exporters are
       adopters and no firm is simultaneously a mechanized exporter and a traditional
-      domestic producer. This must be verified at the solution, not assumed.
+      domestic producer. This now holds by construction under the nested choice
+      \eqref{eq:nested}.
+\item $\sigma_x>0$ when set (aggregate export demand elasticity).
 \end{itemize}
 
 \subsection{Existence, uniqueness, and multiplicity (review \S3.10)}\label{sec:existence}
@@ -840,11 +1069,52 @@ minimum --- items 1--8 --- has landed:
       the external-balance condition by an identity and admitted a one-dimensional continuum
       of equilibria indexed by the trade deficit, and solutions depended on the solver's
       initial guess (review \S1.5; \texttt{docs/fresh\_look.md}, \S2.1).
-\item \emph{Cutoff ordering.} The ordering $\bar\phi\le\breve\phi\le\tilde\phi$ is provided
-      as a post-solution \emph{diagnostic} (\texttt{checks.cutoff\_ordering\_violation}),
-      not a hard constraint, because the current toy calibration violates it --- exactly
-      the configuration-dependent failure the review anticipated (review \S2.2). Enforcing
-      it requires either the parameter restrictions or the joint discrete choice.
+\item \emph{Cutoff ordering.} Earlier versions computed each cutoff separately and
+      reported the ordering only as a diagnostic, which the calibration violated everywhere.
+      The cutoffs now come from the nested choice \eqref{eq:nested}, and the diagnostic
+      (\texttt{checks.cutoff\_ordering\_violation}) is a regression guard that returns zero.
+\end{itemize}
+
+\paragraph{Changes after the referee report on the fresh-look memo
+(\texttt{docs/review\_fresh\_look.md}).}
+\begin{itemize}[leftmargin=1.5em]
+\item \emph{Nested entry, adoption and export choice} \eqref{eq:nested} in \texttt{trade.py}
+      (report item 1.3.6).
+\item \emph{Separate aggregate export demand elasticity} $\sigma_x$ \eqref{eq:sigmax}
+      (\texttt{ModelParameters.sigma\_x}, default $\sigma$; report item 1.3.5).
+\item \emph{Exact PIGL equivalent income} \eqref{eq:realincome} for migration and welfare
+      (\texttt{preferences.equivalent\_income}, \texttt{expected\_utility}; report \S2.3).
+\item \emph{Infeasible surplus targets raise an error} instead of flooring the transfer scale
+      (report item 1.3.3).
+\item \emph{Occupation choice and sector-specific wages} (\S\ref{sec:occupation};
+      \texttt{ModelParameters.eps\_occ}, \texttt{ModelExogenousPaths.b\_occ},
+      \texttt{ModelDimensions.occupation\_of\_sector}). \texttt{eps\_occ=None} is the
+      integrated market. Tests check the integrated limit, sector-level clearing,
+      \eqref{eq:occshare}, \eqref{eq:gapdecomp}, the welfare gradient and guess invariance
+      (\texttt{tests/test\_occupation.py}).
+\item \emph{Internationally non-traded sectors} (\texttt{ModelExogenousPaths.nontraded}):
+      for $j$ non-traded, the foreign variety drops out of $P_{djt}$ and $\tilde D_{j,t}=0$, so
+      there are no imports or exports. Interregional trade is unaffected. The Korea baseline
+      treats rice (protected by import controls and, from 1969, procurement) and services as
+      non-traded, and other farm output (wheat and feed grains) as traded.
+\item \emph{Amenity inversion} (\texttt{inversion.invert\_amenities}): with population
+      pinned at the observed $L_t$, the rest of the static equilibrium does not depend on
+      $\bar V_t$. So $\bar V_t$ (up to scale) is recovered exactly from the logit
+      \eqref{eq:mu}. The baseline inverts 1965 amenities so that the observed 1965 population
+      is an equilibrium; later urbanisation is a model outcome.
+\item \emph{PIGL domain guard}: shares $\alpha_j+v_j(y/\mathcal P)^{-\eta}$ outside $[0,1]$
+      (incomes too low for the Engel shifters) are truncated and renormalised. This guards
+      transient solver iterates only, and \texttt{checks.pigl\_share\_violation} verifies that
+      it does not bind at a solved path.
+\item \emph{Fixed costs in labour units} (\texttt{ModelParameters.fixed\_costs\_in\_labor}):
+      $F,\breve F,\tilde F$ are labour requirements, and the cost is $F\,w_o$, paid to local
+      labour. Otherwise entry, exporting and mechanisation get mechanically cheaper in real
+      terms as wages grow. The policy calibration uses labour units.
+\item \emph{Reporting} (\texttt{accounting.py}): employment is counted in workers,
+      (variable $+$ fixed-cost labour payments)$/w_o$, and sums to population. Value added is
+      gross output less intermediates. Real GDP is a chained Fisher double-deflated index, with
+      region--sector producer price indices for output and local purchaser prices for
+      intermediates (report \S2.1--2.2, item 1.3.4).
 \end{itemize}
 
 Structural upgrades flagged above --- capital and credit wedges (review \S3.1),

@@ -9,13 +9,14 @@ Calibrated to empirical results from "The Miracle on the Han" (2026 draft):
 - Service sector growth from market access (+8.8 establishments, Table 10)
 - Heterogeneous effects by IP-distance decile (Figure 8)
 
-Model structure:
+Model structure (baseline in scripts/korea_baseline.py, calibrated to Korea's 1965-85
+structural transformation by scripts/calibrate_history.py):
   5 regions  : Seoul, Busan, Changwon, Daegu, Rural
-  3 sectors  : Agri, HeavyMnf, Services
+  4 sectors  : Rice (protected), OtherAg (traded), Manufacturing, Services (non-traded)
   6 periods  : t=1 (1965) .. t=6 (1985)
 
 Policy channels (phased):
-  1) Industrial parks in Changwon/Busan (HeavyMnf productivity + entry support)
+  1) Industrial parks in Changwon/Busan (manufacturing productivity + entry support)
   2) Corridor-focused road infrastructure build-out
   3) Agricultural modernisation spillover in middle/remote regions
   4) Rural service growth from local-demand expansion
@@ -35,20 +36,16 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+for _path in (ROOT, SRC):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
 
+from korea_growth.accounting import sector_accounts
 from korea_growth.checks import validate_inputs
 from korea_growth.solver import solve_dynamic_equilibrium
 from korea_growth.trade import compute_sector_state
-from korea_growth.types import (
-    DynamicEquilibriumPath,
-    ModelDimensions,
-    ModelExogenousPaths,
-    ModelInputs,
-    ModelParameters,
-    SolverOptions,
-)
+from korea_growth.types import DynamicEquilibriumPath, ModelInputs, SolverOptions
+from scripts.korea_baseline import build_baseline_inputs  # noqa: F401  (re-exported)
 
 # ---------------------------------------------------------------------------
 # Empirical constants from the paper
@@ -89,9 +86,6 @@ AG_MODERNIZATION_EXPOSURE = np.array([0.0, 0.10, 0.05, 0.55, 0.80], dtype=float)
 SERVICE_DEMAND_EXPOSURE = np.array([0.05, 0.15, 0.10, 0.80, 0.95], dtype=float)
 IMPORT_ACCESS_EXPOSURE = np.array([0.25, 0.50, 0.45, 0.30, 0.10], dtype=float)
 
-BASELINE_HEAVY_MNF_FIRM_MASS = np.array([2.0, 2.1, 2.2, 2.3, 2.4, 2.5], dtype=float)
-BASELINE_HEAVY_MNF_EXPORT_DEMAND = np.array([0.48, 0.58, 0.72, 0.88, 1.00, 1.10], dtype=float)
-
 AG_PRODUCTIVITY_TARGET_SHARE = 0.30
 AG_LABOUR_INTENSITY_TARGET_SHARE = 0.035
 AG_ADOPTION_COST_DECLINE = 0.14
@@ -100,242 +94,6 @@ SERVICE_PRODUCTIVITY_BOOST = 0.24
 SERVICE_AMENITY_BOOST = 0.04
 EXPORT_DEMAND_BOOST = 0.02
 HEAVY_MNF_FIRM_MASS_BOOST = 0.04
-
-
-def build_baseline_inputs() -> ModelInputs:
-    """Construct a 5-region, 3-sector, 6-period baseline economy.
-
-    Regions are ordered by proximity to industrial parks:
-      Seoul (capital), Busan (port city), Changwon (IP host),
-      Daegu (intermediate), Rural (remote agricultural)
-
-    Sectors: Agri (j=0), HeavyMnf (j=1), Services (j=2)
-    Periods: t=1..6 mapping to ~1965, 1968, 1973, 1975, 1980, 1985
-    """
-    times = [1, 2, 3, 4, 5, 6]
-    regions = ["Seoul", "Busan", "Changwon", "Daegu", "Rural"]
-    sectors = ["Agri", "HeavyMnf", "Services"]
-
-    dims = ModelDimensions(times=times, regions=regions, sectors=sectors)
-
-    # --- Parameters ---
-    # sigma=4: CES elasticity (standard in Melitz-type models)
-    # theta=5: Pareto shape (governs firm heterogeneity)
-    # kappa=8: Pareto upper bound
-    # xi=1.5: cost advantage of mechanised agriculture
-    # rho_j: agglomeration elasticity by sector
-    #   - Agri: 0.03 (low agglomeration, paper shows rural dispersion)
-    #   - HeavyMnf: 0.12 (strong agglomeration, paper Fig 3 shows concentration)
-    #   - Services: 0.06 (moderate, paper Table 10 shows local demand driven)
-    # iota=-0.02: mild congestion
-    # eta=0.2: non-homothetic expenditure parameter
-    # nu=5.0: migration choice heterogeneity
-    # alpha_j: base expenditure shares
-    #   - Agri: 0.35 (1965 agriculture ~35% of GDP, Fig 1)
-    #   - HeavyMnf: 0.25 (manufacturing ~15% in 1965, rising)
-    #   - Services: 0.40 (services ~45% in 1965)
-    # v_j: non-homothetic shifts (richer -> less ag, more services)
-    params = ModelParameters(
-        sigma=4.0,
-        theta=5.0,
-        kappa=8.0,
-        xi=1.5,
-        rho_j=np.array([0.03, 0.12, 0.06]),
-        iota=-0.02,
-        eta=0.2,
-        nu=5.0,
-        alpha_j=np.array([0.35, 0.25, 0.40]),
-        v_j=np.array([0.03, -0.01, -0.02]),
-    )
-
-    T, N, J = dims.T, dims.N, dims.J
-
-    # --- Initial population shares ---
-    # 1965: urbanisation ~28%, Seoul dominant, Rural largest
-    # Paper Fig 2: urban pop share 28% in 1960
-    L0 = np.array([0.20, 0.12, 0.03, 0.10, 0.55])
-
-    # --- Firm mass ---
-    M = np.full((T, J), 1.0)
-    # Heavy manufacturing has a meaningful pre-HCI base and grows with export demand.
-    M[:, 1] = BASELINE_HEAVY_MNF_FIRM_MASS
-
-    # --- Productivity shifter A ---
-    A = np.ones((T, N, J))
-    # The urban corridor is already Korea's manufacturing core before 1973.
-    A[:, 0, 1] = 1.25
-    A[:, 1, 1] = 1.45
-    A[:, 2, 1] = 1.55
-    A[:, 3, 1] = 1.15
-    # Seoul remains productive in services, but not enough to swamp manufacturing.
-    A[:, 0, 2] = 0.98
-    # Rural has higher ag productivity (fertile land)
-    A[:, 4, 0] = 1.1
-
-    # --- Production shares ---
-    # beta: land share in value added
-    #   Agri: 0.40 (land-intensive)
-    #   HeavyMnf: 0.15 (capital equipment but modelled via land/structures)
-    #   Services: 0.25 (commercial real estate)
-    beta = np.zeros((T, N, J))
-    beta[..., 0] = 0.40  # Agri
-    beta[..., 1] = 0.15  # HeavyMnf
-    beta[..., 2] = 0.25  # Services
-
-    # gamma: value-added share in gross output
-    #   Agri: 0.55 (moderate IO linkages)
-    #   HeavyMnf: 0.40 (heavy IO usage — steel, chemicals, etc.)
-    #   Services: 0.70 (mostly value-added, few material inputs)
-    gamma = np.zeros((T, N, J))
-    gamma[..., 0] = 0.55
-    gamma[..., 1] = 0.40
-    gamma[..., 2] = 0.70
-
-    # gamma_io: intermediate input shares (output sector j, input sector k)
-    # Must satisfy: gamma[j] + sum_k gamma_io[j,k] = 1
-    gamma_io = np.zeros((T, N, J, J))
-    # Agri uses: own inputs 0.10, HeavyMnf inputs 0.20 (machinery/fertiliser),
-    #            Services 0.15 (transport/marketing)
-    gamma_io[..., 0, 0] = 0.10  # Agri->Agri
-    gamma_io[..., 0, 1] = 0.20  # HeavyMnf->Agri
-    gamma_io[..., 0, 2] = 0.15  # Services->Agri
-    # HeavyMnf uses: Agri 0.05, own 0.35, Services 0.20
-    gamma_io[..., 1, 0] = 0.05  # Agri->HeavyMnf
-    gamma_io[..., 1, 1] = 0.35  # HeavyMnf->HeavyMnf
-    gamma_io[..., 1, 2] = 0.20  # Services->HeavyMnf
-    # Services uses: Agri 0.05, HeavyMnf 0.10, own 0.15
-    gamma_io[..., 2, 0] = 0.05  # Agri->Services
-    gamma_io[..., 2, 1] = 0.10  # HeavyMnf->Services
-    gamma_io[..., 2, 2] = 0.15  # Services->Services
-
-    # --- New technology (adoption) for agriculture ---
-    # Mechanisation: higher HeavyMnf input share (tractors/tillers)
-    # Paper Table 2: market access drives machinery adoption
-    gammabreve_io = gamma_io.copy()
-    # Adoption shifts HeavyMnf input share up (from 0.20 to 0.35)
-    # reflecting tiller/machinery adoption from paper (272 HH tillers per
-    # unit delta-logMA). Non-HeavyMnf shares stay the same per model constraint.
-    gammabreve_io[..., 0, 1] = 0.35  # more machinery inputs
-
-    gammabreve = gamma.copy()
-    # Recompute VA share for agri to satisfy sum-to-one:
-    # gammabreve[Agri] = 1 - sum_k gammabreve_io[Agri, k]
-    gammabreve[..., 0] = (
-        1.0 - gammabreve_io[..., 0, :].sum(axis=-1)
-    )
-    gammabreve[..., 0] = np.clip(gammabreve[..., 0], 1e-6, 0.999)
-
-    betabreve = beta.copy()
-    # Maintain gammabreve*betabreve = gamma*beta (land share consistency)
-    safe_gammabreve = np.maximum(gammabreve[..., 0], 1e-10)
-    betabreve[..., 0] = (gamma[..., 0] * beta[..., 0]) / safe_gammabreve
-
-    # --- Fixed costs ---
-    F = np.full((T, N, J), 0.20)
-    F[:, :, 1] *= 0.52
-    # Agriculture adoption cost: Fbreve
-    Fbreve = np.zeros((T, N, J))
-    Fbreve[..., 0] = 0.05
-    # Export fixed cost
-    Ftilde = np.full((T, N, J), 0.05)
-
-    # --- Input-cost subsidies ---
-    # Baseline: small agricultural subsidy only
-    s = np.zeros((T, N, J))
-    s[..., 0] = 0.05  # mild ag subsidy
-
-    # --- Foreign demand and prices ---
-    Dtilde = np.full((T, J), 0.50)
-    # HeavyMnf has meaningful foreign demand before the HCI push.
-    Dtilde[:, 1] = BASELINE_HEAVY_MNF_EXPORT_DEMAND
-    ptilde = np.ones((T, J))
-
-    # --- Amenities ---
-    Vbar = np.ones((T, N))
-    # Seoul has an amenity premium; Rural has lower baseline amenity.
-    Vbar[:, 0] = 1.18
-    Vbar[:, 4] = 0.85
-
-    # --- Within-country trade costs tau ---
-    # Pre-road baseline: high inter-regional costs, especially to/from Rural
-    # Paper: Gyeongbu Expressway (Seoul-Busan) opened 1970, highway coverage
-    # doubled by 1980.
-    #
-    # Distance matrix (iceberg cost):
-    #          Seoul  Busan  Changwon  Daegu  Rural
-    # Seoul      1.0   1.30    1.35    1.25    1.50
-    # Busan     1.30    1.0    1.10    1.20    1.40
-    # Changwon  1.35   1.10     1.0    1.15    1.35
-    # Daegu     1.25   1.20    1.15     1.0    1.30
-    # Rural     1.50   1.40    1.35    1.30     1.0
-    base_tau_matrix = np.array([
-        [1.00, 1.30, 1.35, 1.25, 1.50],
-        [1.30, 1.00, 1.10, 1.20, 1.40],
-        [1.35, 1.10, 1.00, 1.15, 1.35],
-        [1.25, 1.20, 1.15, 1.00, 1.30],
-        [1.50, 1.40, 1.35, 1.30, 1.00],
-    ])
-    tau = np.ones((T, J, N, N))
-    for t in range(T):
-        for j in range(J):
-            tau[t, j, :, :] = base_tau_matrix
-
-    # --- Import trade costs ---
-    tautilde = np.full((T, J, N), 1.5)
-    # Port cities have lower import costs
-    tautilde[:, :, 1] = 1.3  # Busan (major port)
-    tautilde[:, :, 2] = 1.35  # Changwon (near port)
-
-    # --- Migration costs delta ---
-    # Higher cost to move to/from Rural
-    base_delta = np.array([
-        [1.00, 1.08, 1.10, 1.08, 1.15],
-        [1.08, 1.00, 1.05, 1.08, 1.12],
-        [1.10, 1.05, 1.00, 1.06, 1.10],
-        [1.08, 1.08, 1.06, 1.00, 1.10],
-        [1.15, 1.12, 1.10, 1.10, 1.00],
-    ])
-    delta = np.ones((T, N, N))
-    for t in range(T):
-        delta[t, :, :] = base_delta
-
-    # --- Land/structures ---
-    # Rural has more land; Seoul constrained
-    H = np.full((T, N), 1.0)
-    H[:, 0] = 0.7   # Seoul (constrained)
-    H[:, 4] = 2.0   # Rural (abundant land)
-
-    # --- Government infrastructure spending ---
-    # Increases during HCI period (road construction)
-    tax_spending = np.array([0.005, 0.01, 0.02, 0.025, 0.02, 0.015])
-
-    exog = ModelExogenousPaths(
-        L0=L0,
-        M=M,
-        A=A,
-        beta=beta,
-        gamma=gamma,
-        gamma_io=gamma_io,
-        betabreve=betabreve,
-        gammabreve=gammabreve,
-        gammabreve_io=gammabreve_io,
-        F=F,
-        Fbreve=Fbreve,
-        Ftilde=Ftilde,
-        s=s,
-        Dtilde=Dtilde,
-        ptilde=ptilde,
-        Vbar=Vbar,
-        tau=tau,
-        tautilde=tautilde,
-        delta=delta,
-        H=H,
-        tax_spending_on_building_H_and_roads=tax_spending,
-    )
-
-    inputs = ModelInputs(dims=dims, params=params, exog=exog)
-    validate_inputs(inputs)
-    return inputs
 
 
 def with_hci_policy(inputs: ModelInputs) -> ModelInputs:
@@ -368,9 +126,10 @@ def with_hci_policy(inputs: ModelInputs) -> ModelInputs:
 
     changwon_idx = dims.regions.index("Changwon")
     busan_idx = dims.regions.index("Busan")
-    heavy_idx = dims.sectors.index("HeavyMnf")
-    agri_idx = dims.sectors.index("Agri")
-    services_idx = dims.sectors.index("Services")
+    heavy_idx = dims.heavy_idx
+    agri_idx = dims.agri_idx  # the sector with the mechanisation margin
+    farm_idx = dims.farm_idx
+    services_idx = dims.services_idx
 
     active_phase_total = sum(ROAD_PHASE[int(t)] for t in times if int(t) >= 3)
     machinery_scale = BETA_MACHINERY_ADOPTION / 272.0
@@ -429,24 +188,25 @@ def with_hci_policy(inputs: ModelInputs) -> ModelInputs:
                         * ag_exposure
                         / TAU_DECLINE_FACTOR
                     )
-                    A[t_idx, n, agri_idx] *= np.exp(
-                        BETA_AG_PRODUCTIVITY
-                        * AG_PRODUCTIVITY_TARGET_SHARE
-                        * phase
-                        * ag_exposure
-                        / active_phase_total
-                    )
-                    beta[t_idx, n, agri_idx] = min(
-                        beta[t_idx, n, agri_idx]
-                        + (
-                            AG_LABOUR_INTENSITY_TARGET_SHARE
-                            * abs(BETA_LABOUR_INTENSITY)
+                    for fj in farm_idx:
+                        A[t_idx, n, fj] *= np.exp(
+                            BETA_AG_PRODUCTIVITY
+                            * AG_PRODUCTIVITY_TARGET_SHARE
                             * phase
                             * ag_exposure
-                            / (active_phase_total * 0.61)
-                        ),
-                        0.455,
-                    )
+                            / active_phase_total
+                        )
+                        beta[t_idx, n, fj] = min(
+                            beta[t_idx, n, fj]
+                            + (
+                                AG_LABOUR_INTENSITY_TARGET_SHARE
+                                * abs(BETA_LABOUR_INTENSITY)
+                                * phase
+                                * ag_exposure
+                                / (active_phase_total * 0.61)
+                            ),
+                            0.455,
+                        )
 
                 service_exposure = SERVICE_DEMAND_EXPOSURE[n]
                 F[t_idx, n, services_idx] *= 1.0 - (
@@ -479,9 +239,11 @@ def with_hci_policy(inputs: ModelInputs) -> ModelInputs:
 
     gammabreve[..., agri_idx] = 1.0 - gammabreve_io[..., agri_idx, :].sum(axis=-1)
     gammabreve[..., agri_idx] = np.clip(gammabreve[..., agri_idx], 1e-6, 0.999)
-    safe_gb = np.maximum(gammabreve[..., agri_idx], 1e-10)
     gamma = exog.gamma.copy()
-    betabreve[..., agri_idx] = (gamma[..., agri_idx] * beta[..., agri_idx]) / safe_gb
+    # Keep gammabreve * betabreve = gamma * beta for every farm sector whose beta changed.
+    for fj in farm_idx:
+        safe_gb = np.maximum(gammabreve[..., fj], 1e-10)
+        betabreve[..., fj] = (gamma[..., fj] * beta[..., fj]) / safe_gb
 
     exog_policy = replace(
         exog,
@@ -511,16 +273,27 @@ def collect_region_metrics(
     *,
     inputs: ModelInputs,
     path: DynamicEquilibriumPath,
-    target_sector_idx: int,
+    target_sector_idx: int | None = None,
 ) -> dict[str, np.ndarray]:
-    T, N, J = inputs.dims.T, inputs.dims.N, inputs.dims.J
+    """Regional and national metrics. The "target" sector defaults to agriculture as a whole
+    (all farm sectors); the sector groups (agriculture, manufacturing, services) are stored
+    for the national share functions."""
+    dims = inputs.dims
+    T, N, J = dims.T, dims.N, dims.J
     eps = 1e-12
+    target = list(dims.farm_idx) if target_sector_idx is None else [target_sector_idx]
+    groups = [list(dims.farm_idx), [dims.heavy_idx], [dims.services_idx]]
 
     exports_by_sector = np.zeros((T, N, J), dtype=float)
     output_by_sector = np.zeros((T, N, J), dtype=float)
+    employment_by_sector = np.zeros((T, N, J), dtype=float)
+    va_by_sector = np.zeros((T, N, J), dtype=float)
 
     for t_idx in range(T):
         L_prev = inputs.exog.L0 if t_idx == 0 else path.L[t_idx - 1, :]
+        acc = sector_accounts(inputs, t_idx, L_prev, path.at(t_idx))
+        employment_by_sector[t_idx] = acc.employment
+        va_by_sector[t_idx] = acc.value_added
         for j_idx in range(J):
             st = compute_sector_state(
                 t=t_idx,
@@ -529,7 +302,7 @@ def collect_region_metrics(
                 params=inputs.params,
                 exog=inputs.exog,
                 L_prev=L_prev,
-                w=path.w[t_idx, :],
+                w=path.w_sector[t_idx],
                 r=path.r[t_idx, :],
                 P=path.P[t_idx, :, :],
                 E=path.E[t_idx, :, :],
@@ -538,18 +311,14 @@ def collect_region_metrics(
             output_by_sector[t_idx, :, j_idx] = st.gross_output
 
     total_exports = exports_by_sector.sum(axis=2)
-    target_sector_exports = exports_by_sector[:, :, target_sector_idx]
+    target_sector_exports = exports_by_sector[:, :, target].sum(axis=2)
     total_output = output_by_sector.sum(axis=2)
 
-    target_exp_share = path.E[:, :, target_sector_idx] / np.maximum(
-        path.E.sum(axis=2), eps
-    )
+    target_exp_share = path.E[:, :, target].sum(axis=2) / np.maximum(path.E.sum(axis=2), eps)
     target_export_share = target_sector_exports / np.maximum(total_exports, eps)
-    target_output_share = output_by_sector[:, :, target_sector_idx] / np.maximum(
-        total_output, eps
-    )
-    mnf_output_share = output_by_sector[:, :, 1] / np.maximum(total_output, eps)
-    services_output_share = output_by_sector[:, :, 2] / np.maximum(total_output, eps)
+    target_output_share = output_by_sector[:, :, target].sum(axis=2) / np.maximum(total_output, eps)
+    mnf_output_share = output_by_sector[:, :, dims.heavy_idx] / np.maximum(total_output, eps)
+    services_output_share = output_by_sector[:, :, dims.services_idx] / np.maximum(total_output, eps)
 
     return {
         "wage": path.w,
@@ -563,16 +332,40 @@ def collect_region_metrics(
         "mnf_output_share": mnf_output_share,
         "services_output_share": services_output_share,
         "output_by_sector": output_by_sector,
+        "employment_by_sector": employment_by_sector,
+        "va_by_sector": va_by_sector,
+        "sector_groups": groups,
         "taubar": path.taubar,
         "pibar": path.pibar,
     }
 
 
+def _national_shares(by_sector: np.ndarray, groups) -> np.ndarray:
+    """National shares (T, 3) of the sector groups (agriculture, manufacturing, services)."""
+    total = by_sector.sum(axis=(1, 2))
+    national = by_sector.sum(axis=1)
+    grouped = np.stack([national[:, g].sum(axis=1) for g in groups], axis=1)
+    return grouped / np.maximum(total[:, None], 1e-12)
+
+
 def aggregate_output_shares(metrics: dict[str, np.ndarray]) -> np.ndarray:
-    """Aggregate sectoral output shares using economy-wide output weights."""
-    output = metrics["output_by_sector"]
-    economy_total = output.sum(axis=(1, 2))
-    return output.sum(axis=1) / np.maximum(economy_total[:, None], 1e-12)
+    """National *gross-output* shares (T, 3) of agriculture, manufacturing and services,
+    including intermediate sales.
+
+    Gross-output, value-added and employment shares are different objects; report them
+    separately (docs/review_fresh_look.md 1.3 item 4).
+    """
+    return _national_shares(metrics["output_by_sector"], metrics["sector_groups"])
+
+
+def aggregate_value_added_shares(metrics: dict[str, np.ndarray]) -> np.ndarray:
+    """National value-added shares (T, 3) of agriculture, manufacturing and services."""
+    return _national_shares(metrics["va_by_sector"], metrics["sector_groups"])
+
+
+def aggregate_employment_shares(metrics: dict[str, np.ndarray]) -> np.ndarray:
+    """National employment shares in workers (T, 3) of agriculture, manufacturing, services."""
+    return _national_shares(metrics["employment_by_sector"], metrics["sector_groups"])
 
 
 def calibration_moments(
@@ -581,13 +374,18 @@ def calibration_moments(
     policy: dict[str, np.ndarray],
 ) -> dict[str, float]:
     """Directional moments used to compare the simulation to the paper."""
-    base_agg = aggregate_output_shares(base)
-    policy_agg = aggregate_output_shares(policy)
+    moments: dict[str, float] = {}
+    for tag, fn in (
+        ("output", aggregate_output_shares),
+        ("va", aggregate_value_added_shares),
+        ("emp", aggregate_employment_shares),
+    ):
+        b, p = fn(base), fn(policy)
+        for j, name in enumerate(("agri", "mnf", "services")):
+            moments[f"agg_{name}_{tag}_share_change"] = float(p[-1, j] - b[-1, j])
 
     return {
-        "agg_agri_share_change": float(policy_agg[-1, 0] - base_agg[-1, 0]),
-        "agg_mnf_share_change": float(policy_agg[-1, 1] - base_agg[-1, 1]),
-        "agg_services_share_change": float(policy_agg[-1, 2] - base_agg[-1, 2]),
+        **moments,
         "changwon_wage_change": float(policy["wage"][-1, 2] - base["wage"][-1, 2]),
         "changwon_mnf_share_change": float(
             policy["mnf_output_share"][-1, 2] - base["mnf_output_share"][-1, 2]
@@ -643,7 +441,7 @@ def plot_structural_transformation(
         ax.plot(times, pol_agg[:, key], marker="s", label="HCI Policy")
         ax.axvline(3, color="grey", linestyle="--", linewidth=0.8, alpha=0.7,
                    label="HCI declaration (1973)")
-        ax.set_title(f"{s_name} output share")
+        ax.set_title(f"{s_name} gross-output share")
         ax.set_xticks(times)
         ax.set_xticklabels(xlabels, rotation=45, fontsize=8)
         ax.grid(alpha=0.2)
@@ -673,7 +471,7 @@ def plot_target_mechanisms(
         (f"{target_region} population share", "pop_share"),
         (f"{target_region} per-capita income", "income_pc"),
         (f"{target_region} total exports", "exports_total"),
-        (f"{target_region} HeavyMnf output share", "mnf_output_share"),
+        (f"{target_region} Manufacturing output share", "mnf_output_share"),
         (f"{target_region} Services output share", "services_output_share"),
     ]
 
@@ -709,8 +507,8 @@ def plot_regional_effects(
         ("Wage effect", "wage"),
         ("Population-share effect", "pop_share"),
         ("Income-per-capita effect", "income_pc"),
-        ("HeavyMnf output-share effect", "mnf_output_share"),
-        ("Agri output-share effect", "target_output_share"),
+        ("Manufacturing output-share effect", "mnf_output_share"),
+        ("Agriculture output-share effect", "target_output_share"),
         ("Services output-share effect", "services_output_share"),
     ]
 
@@ -761,7 +559,7 @@ def plot_rural_spillovers(
             marker="o", label="No HCI")
     ax.plot(times, policy["target_output_share"][:, rural_idx],
             marker="s", label="HCI Policy")
-    ax.set_title(f"Rural: Agri output share\n(cf. Table 4: ag productivity +0.70 log pts)")
+    ax.set_title(f"Rural: agriculture output share\n(cf. Table 4: ag productivity +0.70 log pts)")
     ax.set_xticks(times)
     ax.set_xticklabels(xlabels, rotation=45, fontsize=8)
     ax.legend(fontsize=8)
@@ -825,7 +623,7 @@ def print_policy_description() -> None:
     print()
     print("Policy channels:")
     print("  1) Industrial parks in Changwon & Busan (t>=3, ~1973)")
-    print("     - HeavyMnf productivity and entry improve most in Changwon")
+    print("     - Manufacturing productivity and entry improve most in Changwon")
     print("     - Busan receives a smaller corridor/port manufacturing boost")
     print("     Calibration: Table 1 SDID ATTs (1972-73 cohorts)")
     print()
@@ -860,9 +658,13 @@ def print_calibration_summary(
 ) -> None:
     moments = calibration_moments(base=base, policy=policy)
     print("=== Directional calibration check (1985 policy - baseline) ===")
-    print(f"  Aggregate agriculture share: {moments['agg_agri_share_change']:+.4f}")
-    print(f"  Aggregate manufacturing share: {moments['agg_mnf_share_change']:+.4f}")
-    print(f"  Aggregate services share: {moments['agg_services_share_change']:+.4f}")
+    print(f"  {'National sector share':<28} {'gross output':>13} {'value added':>12} {'employment':>11}")
+    for name, label in (("agri", "Agriculture"), ("mnf", "Manufacturing"), ("services", "Services")):
+        print(
+            f"  {label:<28} {moments[f'agg_{name}_output_share_change']:+13.4f}"
+            f" {moments[f'agg_{name}_va_share_change']:+12.4f}"
+            f" {moments[f'agg_{name}_emp_share_change']:+11.4f}"
+        )
     print(f"  Changwon wage: {moments['changwon_wage_change']:+.4f}")
     print(f"  Changwon manufacturing share: {moments['changwon_mnf_share_change']:+.4f}")
     print(f"  Seoul population share: {moments['seoul_pop_change']:+.4f}")
@@ -915,7 +717,7 @@ def main() -> None:
     outdir = Path("outputs")
     outdir.mkdir(exist_ok=True)
 
-    print("Building baseline economy (5 regions, 3 sectors, 6 periods)...")
+    print("Building baseline economy (5 regions, 4 sectors, 6 periods)...")
     baseline_inputs = build_baseline_inputs()
 
     print("Applying HCI policy package...")
@@ -932,13 +734,12 @@ def main() -> None:
     dims = baseline_inputs.dims
     times = np.asarray(dims.times)
     regions = list(dims.regions)
-    agri_idx = dims.sectors.index("Agri")
 
     base_metrics = collect_region_metrics(
-        inputs=baseline_inputs, path=baseline_path, target_sector_idx=agri_idx
+        inputs=baseline_inputs, path=baseline_path
     )
     policy_metrics = collect_region_metrics(
-        inputs=policy_inputs, path=policy_path, target_sector_idx=agri_idx
+        inputs=policy_inputs, path=policy_path
     )
 
     # --- Generate plots ---
