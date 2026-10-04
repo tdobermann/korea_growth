@@ -60,12 +60,6 @@ BOUNDS = {
 }
 
 
-class _Slice:
-    def __init__(self, path: DynamicEquilibriumPath, t: int):
-        self.w, self.r, self.P, self.E = path.w[t], path.r[t], path.P[t], path.E[t]
-        self.taubar, self.pibar = float(path.taubar[t]), float(path.pibar[t])
-
-
 def history_moments(inputs: ModelInputs, path: DynamicEquilibriumPath) -> dict[str, np.ndarray]:
     """National structural-transformation moments by period (arrays of length T)."""
     dims = inputs.dims
@@ -81,7 +75,7 @@ def history_moments(inputs: ModelInputs, path: DynamicEquilibriumPath) -> dict[s
     accounts = []
     for t in range(dims.T):
         L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        eq = _Slice(path, t)
+        eq = path.at(t)
         acc = sector_accounts(inputs, t, L_prev, eq)
         agg = aggregate_accounting(inputs, t, L_prev, eq)
         accounts.append(acc)

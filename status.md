@@ -25,6 +25,12 @@ _Last updated: 2026-07-06 (branch `claude/model-review-md-jjiaa2`)._
 > revised: an identification caveat on the inversion, "Matsuyama in space" restated as a
 > model-generated prediction, separate access measures, and an agriculture-first build order.
 
+> **2026-10-04 (later).** Sector-specific wages added as theory and code: nested occupation
+> choice inside location choice (`model.tex` section "Occupation choice and sector-specific
+> wages"; `eps_occ`, `b_occ`, `occupation_of_sector`). It removes the integrated market's
+> mechanical limit on the agricultural productivity gap. Not recalibrated: the baseline still
+> uses the integrated market. Illustration in `docs/fresh_look.md` §2.7.
+>
 > **2026-10-04 update.** The baseline now reproduces Korea's 1965–85 structural
 > transformation (`scripts/korea_baseline.py`, `scripts/calibrate_history.py`): farm
 > employment 0.605 → 0.229, manufacturing value added 0.192 → 0.298, real GDP ×4, exports

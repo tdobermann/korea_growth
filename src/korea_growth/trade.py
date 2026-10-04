@@ -138,7 +138,7 @@ def compute_sector_state(
     L_prev:
         Lagged population (N,).
     w, r:
-        Factor prices (N,).
+        Wages (N,) or by location and sector (N, J); land rents (N,).
     P, E:
         Current guess of price indices and expenditures (N, J).
     eps:
@@ -162,9 +162,14 @@ def compute_sector_state(
     gamma_o = exog.gamma[t, :, j]
     gamma_io_o = exog.gamma_io[t, :, j, :]  # (N,J)
 
+    # Sector-j wage: firms hire labour in their own sector (w is (N,) with an integrated
+    # labour market, (N, J) with sector-specific wages).
+    w = np.asarray(w, dtype=float)
+    w_j = w[:, j] if w.ndim == 2 else w
+
     # Fixed costs in numeraire units (labour requirements times the local wage if
     # params.fixed_costs_in_labor).
-    fc_unit = w if params.fixed_costs_in_labor else 1.0
+    fc_unit = w_j if params.fixed_costs_in_labor else 1.0
     F_o = exog.F[t, :, j] * fc_unit
     Fbreve_o = exog.Fbreve[t, :, j] * fc_unit
     Ftilde_o = exog.Ftilde[t, :, j] * fc_unit
@@ -177,14 +182,14 @@ def compute_sector_state(
     f_o = agglomeration(L_prev, float(params.rho_j[j]))
 
     # Unit cost for domestic production
-    C_o = unit_cost_bundle(r=r, w=w, P=P, beta=beta_o, gamma=gamma_o, gamma_io=gamma_io_o)
+    C_o = unit_cost_bundle(r=r, w=w_j, P=P, beta=beta_o, gamma=gamma_o, gamma_io=gamma_io_o)
 
     # Unit cost and shares for new tech (only matters for agriculture)
     if is_agri:
         betabreve_o = exog.betabreve[t, :, j]
         gammabreve_o = exog.gammabreve[t, :, j]
         gammabreve_io_o = exog.gammabreve_io[t, :, j, :]
-        CBREVE_o = unit_cost_bundle(r=r, w=w, P=P, beta=betabreve_o, gamma=gammabreve_o, gamma_io=gammabreve_io_o)
+        CBREVE_o = unit_cost_bundle(r=r, w=w_j, P=P, beta=betabreve_o, gamma=gammabreve_o, gamma_io=gammabreve_io_o)
     else:
         betabreve_o = None
         gammabreve_o = None

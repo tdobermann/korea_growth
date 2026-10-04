@@ -136,7 +136,9 @@ def solve_static_equilibrium(
     if guess is None:
         guess = initial_guess(inputs=inputs, t=t, L_prev=L_prev)
 
-    w = np.asarray(guess["w"], dtype=float).reshape(N)
+    # Wages are carried by (location, sector); a (N,) guess is broadcast across sectors.
+    w = np.asarray(guess["w"], dtype=float)
+    w = np.repeat(w.reshape(N, 1), J, axis=1) if w.size == N else w.reshape(N, J)
     r = np.asarray(guess["r"], dtype=float).reshape(N)
     P = np.asarray(guess["P"], dtype=float).reshape(N, J)
     E = np.asarray(guess["E"], dtype=float).reshape(N, J)
@@ -181,9 +183,11 @@ def solve_static_equilibrium(
                 eps=eps,
                 fixed_L=fixed_L,
             )
+            L_sec = implied2.L_sector
+            w_avg = np.sum(implied2.w * L_sec, axis=1) / np.maximum(L_sec.sum(axis=1), eps)
             return StaticEquilibrium(
                 t=t,
-                w=implied2.w,
+                w=w_avg,
                 r=implied2.r,
                 P=implied2.P,
                 E=implied2.E,
@@ -193,6 +197,9 @@ def solve_static_equilibrium(
                 pibar=implied2.pibar,
                 max_residual=implied2.max_residual,
                 iters=it,
+                w_sector=implied2.w,
+                L_sector=L_sec,
+                y_sector=implied2.y_sector,
             )
 
         # Simple divergence safeguard: if residual increased a lot, reduce damping.
@@ -233,6 +240,9 @@ def solve_dynamic_equilibrium(
     T, N, J = dims.T, dims.N, dims.J
 
     w_path = np.zeros((T, N), dtype=float)
+    w_sector_path = np.zeros((T, N, J), dtype=float)
+    L_sector_path = np.zeros((T, N, J), dtype=float)
+    y_sector_path = np.zeros((T, N, J), dtype=float)
     r_path = np.zeros((T, N), dtype=float)
     P_path = np.zeros((T, N, J), dtype=float)
     E_path = np.zeros((T, N, J), dtype=float)
@@ -255,7 +265,7 @@ def solve_dynamic_equilibrium(
             else:
                 # Warm-start from previous period
                 guess_t = {
-                    "w": w_path[t - 1, :].copy(),
+                    "w": w_sector_path[t - 1].copy(),
                     "r": r_path[t - 1, :].copy(),
                     "P": P_path[t - 1, :, :].copy(),
                     "E": E_path[t - 1, :, :].copy(),
@@ -266,6 +276,9 @@ def solve_dynamic_equilibrium(
         eq_t = solve_static_equilibrium(inputs=inputs, t=t, L_prev=L_prev, guess=guess_t, options=opts)
 
         w_path[t, :] = eq_t.w
+        w_sector_path[t] = eq_t.w_sector
+        L_sector_path[t] = eq_t.L_sector
+        y_sector_path[t] = eq_t.y_sector
         r_path[t, :] = eq_t.r
         P_path[t, :, :] = eq_t.P
         E_path[t, :, :] = eq_t.E
@@ -279,7 +292,7 @@ def solve_dynamic_equilibrium(
 
         # Warm start next period from this solution
         guess_t = {
-            "w": eq_t.w.copy(),
+            "w": eq_t.w_sector.copy(),
             "r": eq_t.r.copy(),
             "P": eq_t.P.copy(),
             "E": eq_t.E.copy(),
@@ -289,6 +302,9 @@ def solve_dynamic_equilibrium(
 
     return DynamicEquilibriumPath(
         w=w_path,
+        w_sector=w_sector_path,
+        L_sector=L_sector_path,
+        y_sector=y_sector_path,
         r=r_path,
         P=P_path,
         E=E_path,

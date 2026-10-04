@@ -90,6 +90,25 @@ def log_equivalent_income(
     return float(log_P0 + np.log(bracket) / eta)
 
 
+def log_equivalent_income_matrix(
+    y: np.ndarray,
+    P: np.ndarray,
+    alpha_j: np.ndarray,
+    v_j: np.ndarray,
+    eta: float,
+) -> np.ndarray:
+    """Vectorised ``log_equivalent_income`` (unit reference prices) for incomes y (N, K)
+    at location price rows P (N, J)."""
+    logP = np.log(P)
+    log_comp = logP @ np.asarray(alpha_j)  # (N,)
+    z = logP @ np.asarray(v_j)  # (N,)
+    log_x = np.log(np.asarray(y, dtype=float)) - log_comp[:, None]
+    if abs(eta) < 1e-14:
+        return log_x - z[:, None]
+    V = np.exp(eta * log_x) / eta - z[:, None]
+    return np.log(np.maximum(eta * V, 1e-300)) / eta
+
+
 def equivalent_income(
     y_pc: float,
     P_row: np.ndarray,
@@ -143,6 +162,63 @@ def raw_expenditure_shares(
     return np.asarray(alpha_j) + np.asarray(v_j) * scale
 
 
+def occupation_incomes(dims: ModelDimensions, y: np.ndarray) -> np.ndarray:
+    """Per-worker income by occupation (N, O) from income by occupation (N, O), by sector
+    (N, J; sectors of one occupation share it) or by location (N,)."""
+    y = np.asarray(y, dtype=float)
+    O, J = dims.O, dims.J
+    if y.ndim == 1 or y.shape[1] == 1:  # one income per location
+        return np.repeat(y.reshape(-1, 1), O, axis=1)
+    if y.shape[1] == O:
+        return y
+    if y.shape[1] == J:
+        first = [int(np.flatnonzero(dims.occ_idx == o)[0]) for o in range(O)]
+        return y[:, first]
+    raise ValueError(f"income array of shape {y.shape} matches neither O={O} nor J={J}")
+
+
+def occupation_choice(
+    *,
+    t: int,
+    dims: ModelDimensions,
+    params: ModelParameters,
+    exog: ModelExogenousPaths,
+    y: np.ndarray,
+    P: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Occupation shares, location inclusive values and equivalent incomes.
+
+    ``y`` is per-worker income by occupation (N, O), by sector (N, J) or by location (N,).
+    With ``params.eps_occ`` set (model.tex, eq. occshare),
+
+        pi_{o|d}   = (b_do Y_do)^eps / sum_o' (b_do' Y_do')^eps,
+        log Phi_d  = (1/eps) log sum_o (b_do Y_do)^eps,
+
+    where Y_do is the PIGL equivalent income of y_do at location-d prices. With an
+    integrated labour market (eps_occ None) incomes do not differ across occupations,
+    log Phi_d = log Y_d, and the returned shares are uniform placeholders (employment is
+    then set by labour demand, not by choice).
+
+    Returns (pi (N, O), log_Phi (N,), log_Y (N, O)).
+    """
+
+    y_occ = occupation_incomes(dims, y)
+    N, O = y_occ.shape
+    log_Y = log_equivalent_income_matrix(y_occ, P, params.alpha_j, params.v_j, params.eta)
+    if params.eps_occ is None:
+        # Integrated market: every column carries the same income.
+        return np.full((N, O), 1.0 / O), log_Y[:, 0], log_Y
+
+    eps_occ = params.eps_occ
+    log_b = np.zeros((N, O)) if exog.b_occ is None else np.log(exog.b_occ[t])
+    z = eps_occ * (log_b + log_Y)
+    zmax = z.max(axis=1, keepdims=True)
+    ez = np.exp(z - zmax)
+    pi = ez / ez.sum(axis=1, keepdims=True)
+    log_Phi = (zmax[:, 0] + np.log(ez.sum(axis=1))) / eps_occ
+    return pi, log_Phi, log_Y
+
+
 def migration_values(
     *,
     t: int,
@@ -153,24 +229,20 @@ def migration_values(
     y_pc: np.ndarray,
     P: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Deterministic values W_{o,d} of model.tex eq. (Wod) and the destination log Y^eq_d.
+    """Deterministic values W_{o,d} of model.tex eq. (Wod) and the location term log Phi_d.
 
-        W_{o,d} = log Vbar_d + iota log L_{d,t-1} + log Y^eq_d - log delta_{o,d}.
+        W_{o,d} = log Vbar_d + iota log L_{d,t-1} + log Phi_d - log delta_{o,d},
 
-    Migration shares and welfare are both built from these values, so they use the same
-    expenditure function.
+    where log Phi_d is the occupation inclusive value (``occupation_choice``); with an
+    integrated labour market it is log Y^eq_d. ``y_pc`` is (N,) or per-worker income by
+    occupation (N, O) or sector (N, J). Migration shares and welfare are both built from these values, so they
+    use the same expenditure function.
     """
 
-    N = dims.N
-    log_Y = np.array(
-        [
-            log_equivalent_income(y_pc[d], P[d, :], params.alpha_j, params.v_j, params.eta)
-            for d in range(N)
-        ]
-    )
-    W_common = np.log(exog.Vbar[t, :]) + params.iota * np.log(L_prev) + log_Y  # (N,)
+    _, log_Phi, _ = occupation_choice(t=t, dims=dims, params=params, exog=exog, y=y_pc, P=P)
+    W_common = np.log(exog.Vbar[t, :]) + params.iota * np.log(L_prev) + log_Phi  # (N,)
     W_od = W_common[None, :] - np.log(exog.delta[t, :, :])  # (N,N)
-    return W_od, log_Y
+    return W_od, log_Phi
 
 
 def migration_shares(
@@ -202,7 +274,8 @@ def migration_shares(
     Returns
     -------
     (L_t, Yeq_d, U_common_d)
-        L_t is the implied population, Yeq_d the equivalent income per destination, and
+        L_t is the implied population, Yeq_d the equivalent income per destination (the
+        occupation inclusive value Phi_d with sector-specific wages), and
         U_common_d = Vbar_d * g_d * Yeq_d the non-idiosyncratic value before origin costs.
     """
 
@@ -239,6 +312,8 @@ def expected_utility(
         E U_o = (1/nu) log sum_d exp(nu W_{o,d}) + gamma_E / nu,
 
     built on the same W_{o,d} as ``migration_shares``, so d E U_o / d W_{o,d} = mu_{o,d}.
+    With occupation choice, d E U_o / d log Y_{d,k} = mu_{o,d} pi_{k|d} (nested logit), k an
+    occupation.
     """
 
     W_od, _ = migration_values(

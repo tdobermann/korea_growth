@@ -417,9 +417,10 @@ takes exports from 8% to 33% of GDP.
 1. **Agricultural productivity gap.** With one wage per region, farm value added per worker is
    roughly equal to non-farm (rural wage 0.76 of urban in 1965). The unverified 0.38 / 0.59
    value-added / employment shares imply farm value added per worker at about 0.43 of non-farm.
-   The current model could reach that only with a rural/urban wage ratio of about one-third. The
-   fix is sector-specific wages within a location: occupation wedges, or the nested occupation
-   choice of §3.3. Data on farm versus non-farm earnings would discipline it.
+   The integrated model could reach that only with a rural/urban wage ratio of about one-third.
+   **Addressed in the theory (2026-10-04):** sector-specific wages through nested occupation
+   choice (§2.7; `model.tex`, section "Occupation choice and sector-specific wages"). Not yet
+   recalibrated.
 2. **1965 manufacturing share** (0.19 vs 0.15). The manufacturing final-demand weight sits at its
    lower bound (0.02). The stylised input–output coefficients alone over-produce manufacturing,
    so they need replacing with Korean input–output tables.
@@ -441,6 +442,51 @@ strict expected failure.
 urban farm TFP is 0.4 of rural; the food asymptote α_food is 0.05; the 1965 city split is
 stylised; the rice mechanisation fixed cost is not identified; services TFP growth equals farm.
 `scripts/data_targets.MISSING` lists the data that would replace each one.
+
+### 2.7 Sector-specific wages (theory, 2026-10-04)
+
+Principle 3 (§3.3), without non-employment yet. Within each location, workers choose an
+occupation (farming, manufacturing, services) with taste shocks of dispersion 1/ε, nested
+inside the location choice (ν ≤ ε). Each occupation has its own wage, and b is a non-pecuniary
+value of the occupation (attachment to farming, barriers to leaving it). The full derivation is
+in `model.tex`: choice probabilities and inclusive value, labour-market clearing by
+occupation, exact PIGL aggregation over income groups, welfare, the integrated limit, and the
+wage-gap decomposition
+log(Y_A/Y_N) = (1/ε) log(L_A/L_N) − log(b_A/b_N).
+Rice and other crops are one occupation: they are products, not labour markets. Treating them
+as two would give farming double taste mass in the logit.
+
+*What it does in the Korea baseline.* This is an illustration, **not recalibrated**: the 1965
+amenities are re-inverted for each case, and every other parameter is the integrated-market
+calibration.
+
+| case | ag emp 65 | ag VA 65 | w_farm/w_nonfarm 65 | APG 65 | ag emp 85 | ag VA 85 | w_farm/w_nonfarm 85 | APG 85 |
+|---|---|---|---|---|---|---|---|---|
+| integrated (ε = ∞) | 0.605 | 0.595 | 0.827 | 0.958 | 0.229 | 0.239 | 0.868 | 1.053 |
+| ε = 10, b_farm = 1 | 0.561 | 0.584 | 0.951 | 1.100 | 0.219 | 0.236 | 0.905 | 1.103 |
+| ε = 5, b_farm = 1 | 0.530 | 0.578 | 1.051 | 1.214 | 0.218 | 0.236 | 0.908 | 1.107 |
+| ε = 5, b_farm = 1.5 | 0.627 | 0.610 | 0.802 | 0.930 | 0.314 | 0.268 | 0.676 | 0.803 |
+| ε = 5, b_farm = 2 | 0.680 | 0.617 | 0.653 | 0.758 | 0.399 | 0.297 | 0.545 | 0.638 |
+
+(APG = farm value added per worker over non-farm. The wage ratios are national,
+employment-weighted, so they include the rural/urban composition.)
+
+Three findings:
+1. **b = 1 is not neutral.** It implies equal occupation shares at equal pay, so a 60% farm
+   share needs a *higher* farm wage. The productivity gap needs b_farm > b_other. That is the
+   economic content of a farm wedge, and the decomposition prices it.
+2. **With a farm wedge, the gap appears and then widens** during the transformation (b_farm = 2:
+   relative farm wage 0.65 → 0.55, APG 0.76 → 0.64). Falling farm labour demand lowers the farm
+   wage faster than workers leave. The integrated model cannot produce this.
+3. **The wedge also slows the transformation.** Farm employment in 1985 is 0.40 rather than 0.23
+   at unchanged parameters. A recalibration would trade b_farm and ε off against the Engel
+   parameters, and identifying them separately needs farm and non-farm earnings data
+   (`scripts/data_targets.MISSING`).
+
+*Extensions noted in `model.tex`:*
+- Fréchet efficiency draws, i.e. selection (Lagakos–Waugh). PIGL aggregation stays closed-form
+  there, and it predicts different earnings changes for sector switchers.
+- Non-employment as an occupation.
 
 ### 2.5 Smaller specification issues that bite once the model grows and gets geography
 

@@ -269,14 +269,6 @@ def with_hci_policy(inputs: ModelInputs) -> ModelInputs:
     return shocked
 
 
-class _PathSlice:
-    """Equilibrium slice at period t in the form the accounting helpers expect."""
-
-    def __init__(self, path: DynamicEquilibriumPath, t: int):
-        self.w, self.r, self.P, self.E = path.w[t], path.r[t], path.P[t], path.E[t]
-        self.taubar, self.pibar = float(path.taubar[t]), float(path.pibar[t])
-
-
 def collect_region_metrics(
     *,
     inputs: ModelInputs,
@@ -299,7 +291,7 @@ def collect_region_metrics(
 
     for t_idx in range(T):
         L_prev = inputs.exog.L0 if t_idx == 0 else path.L[t_idx - 1, :]
-        acc = sector_accounts(inputs, t_idx, L_prev, _PathSlice(path, t_idx))
+        acc = sector_accounts(inputs, t_idx, L_prev, path.at(t_idx))
         employment_by_sector[t_idx] = acc.employment
         va_by_sector[t_idx] = acc.value_added
         for j_idx in range(J):
@@ -310,7 +302,7 @@ def collect_region_metrics(
                 params=inputs.params,
                 exog=inputs.exog,
                 L_prev=L_prev,
-                w=path.w[t_idx, :],
+                w=path.w_sector[t_idx],
                 r=path.r[t_idx, :],
                 P=path.P[t_idx, :, :],
                 E=path.E[t_idx, :, :],

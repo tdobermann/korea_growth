@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .trade import compute_sector_state
-from .types import ModelInputs
+from .types import ModelInputs, sector_wages
 
 
 @dataclass(frozen=True)
@@ -52,10 +52,12 @@ def sector_accounts(inputs: ModelInputs, t: int, L_prev: np.ndarray, eq) -> Sect
     ppi = np.zeros((N, J))
     trad_share = np.nan
 
+    w = sector_wages(eq)
+    W = w if w.ndim == 2 else np.repeat(w[:, None], J, axis=1)
     for j in range(J):
         st = compute_sector_state(
             t=t, j=j, dims=dims, params=params, exog=exog, L_prev=L_prev,
-            w=eq.w, r=eq.r, P=eq.P, E=eq.E,
+            w=W, r=eq.r, P=eq.P, E=eq.E,
         )
         tfc_scale = (sigma - 1.0) / sigma / (1.0 - exog.s[t, :, j])
         gross[:, j] = st.gross_output
@@ -81,7 +83,8 @@ def sector_accounts(inputs: ModelInputs, t: int, L_prev: np.ndarray, eq) -> Sect
             ppi[:, j] = np.power(st.B_domestic, 1.0 / (1.0 - sigma))
 
     value_added = gross - inter.sum(axis=2)
-    employment = (lab_var + lab_fix) / np.maximum(eq.w, 1e-300)[:, None]
+    # Workers = labour payments / own-sector wage (equals pi_{k|d} L_d with occupation choice).
+    employment = (lab_var + lab_fix) / np.maximum(W, 1e-300)
     return SectorAccounts(
         gross_output=gross,
         intermediates=inter,

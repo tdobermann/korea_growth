@@ -83,6 +83,9 @@ def build_baseline_inputs(cal: HistoryCalibration = CURRENT) -> ModelInputs:
         heavy_mnf_sector="Manufacturing",
         services_sector="Services",
         farm_sectors=FARM_SECTORS,
+        # Occupations: farming (rice and other crops share the farm wage), manufacturing,
+        # services. Active only with params.eps_occ (sector-specific wages).
+        occupation_of_sector=(0, 0, 1, 2),
     )
     T, N, J = dims.T, dims.N, dims.J
     R, O, MF, SV = range(4)

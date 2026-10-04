@@ -15,7 +15,7 @@ import numpy as np
 
 from .preferences import migration_values
 from .solver import solve_static_equilibrium
-from .types import ModelInputs, SolverOptions, StaticEquilibrium
+from .types import ModelInputs, SolverOptions, StaticEquilibrium, sector_incomes
 
 
 def invert_amenities(
@@ -40,7 +40,7 @@ def invert_amenities(
     # Values with unit amenities; the amenity enters additively as log Vbar_d.
     unit = replace(exog, Vbar=np.ones_like(exog.Vbar))
     W0, _ = migration_values(
-        t=t, dims=inputs.dims, params=inputs.params, exog=unit, L_prev=L_prev, y_pc=eq.y_pc, P=eq.P
+        t=t, dims=inputs.dims, params=inputs.params, exog=unit, L_prev=L_prev, y_pc=sector_incomes(eq), P=eq.P
     )
     nu = inputs.params.nu
     a = np.zeros(inputs.dims.N)

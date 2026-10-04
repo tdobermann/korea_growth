@@ -215,6 +215,140 @@ index $\mathcal{Y}_{d,t}$ replaces the sign-ambiguous $V_{d,t}$}. Population evo
   L_{d,t} = \sum_{o \in \Nreg} \mu_{od,t}\, L_{o,t-1}.
 \end{equation}
 
+\subsection{Occupation choice and sector-specific wages}\label{sec:occupation}
+\paragraph{Why.} With one wage per location, value added per worker in agriculture and
+outside it differ only through factor shares. If $\lambda^{k}_{d}$ is the labour share of
+sector-$k$ value added (labour payments, including the fixed-cost bill, over value added),
+the agricultural productivity gap in location $d$ is
+\begin{equation}
+  \mathrm{APG}_{d}\equiv\frac{\mathrm{VA}^{A}_{d}/L^{A}_{d}}{\mathrm{VA}^{N}_{d}/L^{N}_{d}}
+  =\frac{w^{A}_{d}/\lambda^{A}_{d}}{w^{N}_{d}/\lambda^{N}_{d}},
+  \label{eq:apg}
+\end{equation}
+and an integrated local labour market imposes $w^{A}_{d}=w^{N}_{d}$, so
+$\mathrm{APG}_{d}=\lambda^{N}_{d}/\lambda^{A}_{d}$. That is near or above one, because land
+takes a large share of farm value added. The large gaps measured in poor economies
+(Gollin--Lagakos--Waugh 2014) can then come only from spatial wage differences. This
+subsection lets wages differ across occupations within a location. The integrated market is a
+limiting case.
+
+\paragraph{Occupations.} Sectors map onto occupations, $j\mapsto o(j)\in\mathcal{O}$. In the
+Korea application, farming (rice and other crops), manufacturing and services are the
+occupations: rice and other crops are products that the same farmers grow, not separate labour
+markets. Each location--occupation pair has its own wage $w_{d\kappa,t}$, and a firm in sector
+$j$ in $d$ pays $w_{d,o(j),t}$, both in its unit cost and for its fixed costs.
+
+\paragraph{Shock structure.} An agent in origin $o$ chooses a location $d$ and an occupation
+$\kappa$ to maximise
+\begin{equation}
+  W_{od,t}+\log b_{d\kappa,t}+\log\mathcal{Y}_{d\kappa,t}+\upsilon_{i,d\kappa},
+\end{equation}
+where $W_{od,t}$ collects the amenity, congestion and migration-cost terms of \eqref{eq:Wod}
+(without the real-income term), $\mathcal{Y}_{d\kappa,t}$ is the equivalent income
+\eqref{eq:realincome} of per-worker income $y_{d\kappa,t}$ at location-$d$ prices, and
+$b_{d\kappa,t}>0$ is the non-pecuniary value of occupation $\kappa$ in $d$: attachment to
+one's land and to farm life, information or entry barriers, disamenity. The taste shocks
+$\upsilon$ follow the generalised extreme value distribution with generating function
+$G(x)=\sum_{d}\bigl(\sum_{\kappa}x_{d\kappa}^{\varepsilon}\bigr)^{\nu/\varepsilon}$. That is a
+nested logit with locations in the outer nest (dispersion $1/\nu$) and occupations in the inner
+nest ($1/\varepsilon$). It is consistent with random utility if and only if
+$\nu\le\varepsilon$ (McFadden 1978). Moving across sectors within a location is easier than
+moving across locations.
+
+\paragraph{Choice probabilities.} The probability of choosing occupation $\kappa$ given location
+$d$, and the occupation inclusive value of $d$, are
+\begin{equation}
+  \pi_{\kappa\mid d,t}=\frac{(b_{d\kappa,t}\,\mathcal{Y}_{d\kappa,t})^{\varepsilon}}
+  {\sum_{\kappa'}(b_{d\kappa',t}\,\mathcal{Y}_{d\kappa',t})^{\varepsilon}},
+  \qquad
+  \Phi_{d,t}=\Bigl[\sum_{\kappa}(b_{d\kappa,t}\,\mathcal{Y}_{d\kappa,t})^{\varepsilon}\Bigr]^{1/\varepsilon}.
+  \label{eq:occshare}
+\end{equation}
+Location choice is \eqref{eq:mu} with $\Phi_{d,t}$ in place of $\mathcal{Y}_{d,t}$:
+$\mu_{od,t}\propto(\bar V_{d,t}L_{d,t-1}^{\iota}\Phi_{d,t}/\delta_{od,t})^{\nu}$. The joint
+probability is $\mu_{od,t}\pi_{\kappa\mid d,t}$. $\Phi_{d,t}$ contains the option value of
+occupation choice. Its level depends on how many occupations there are
+($\Phi=\mathcal{Y}\,|\mathcal{O}|^{1/\varepsilon}$ when all are identical), which amenities
+absorb.
+
+\paragraph{Incomes, labour markets and demand.} Per-worker income in occupation $\kappa$ in $d$ is
+\begin{equation}
+  y_{d\kappa,t}=\varsigma_{t}\Bigl[(1-\bar\tau_t+\bar\pi_t)\,w_{d\kappa,t}+\frac{r_{d,t}H_{d,t}}{L_{d,t}}\Bigr],
+\end{equation}
+with land rents shared per capita within the location and $\varsigma_t$ the scale that
+distributes the foreign transfer. Labour supply is $L_{d\kappa,t}=\pi_{\kappa\mid d,t}L_{d,t}$.
+Each location--occupation labour market clears:
+\begin{equation}
+  w_{d\kappa,t}\,L_{d\kappa,t}=\sum_{j:\,o(j)=\kappa}\Bigl[(1-\beta_{dj,t})\gamma_{dj,t}\,TFC_{dj,t}+\Phi^{F}_{dj,t}\Bigr],
+  \label{eq:occclear}
+\end{equation}
+with the mechanised-technology split for agriculture as in \S\ref{sec:factor}. PIGL demand
+aggregates exactly over the finite set of income groups:
+$E^{F}_{dj,t}=\sum_{\kappa}\psi_{j}(y_{d\kappa,t},P_{d,t})\,y_{d\kappa,t}L_{d\kappa,t}$.
+Because demand is non-homothetic, income differences between farm and non-farm households
+change the composition of local demand, not just its level.
+
+\paragraph{Welfare.} Expected utility by origin is \eqref{eq:welfare} built on the location
+values with $\Phi_{d,t}$, and
+$\partial\,\mathbb{E}U_{o,t}/\partial\log\mathcal{Y}_{d\kappa,t}=\mu_{od,t}\,\pi_{\kappa\mid d,t}$.
+
+\paragraph{Properties.}
+\begin{enumerate}[leftmargin=1.5em]
+\item \emph{Integrated limit.} As $\varepsilon\to\infty$ with $b_{d\kappa}=1$, every
+      occupation with positive employment pays the same equivalent income, hence the same
+      wage, and the model reduces to one wage per location. With a single occupation the two
+      models coincide for any $\varepsilon$.
+\item \emph{Wage-gap decomposition.} Taking ratios in \eqref{eq:occshare},
+      \begin{equation}
+        \log\frac{\mathcal{Y}_{dA,t}}{\mathcal{Y}_{dN,t}}
+        =\frac{1}{\varepsilon}\log\frac{L_{dA,t}}{L_{dN,t}}-\log\frac{b_{dA,t}}{b_{dN,t}}
+        \label{eq:gapdecomp}
+      \end{equation}
+      (exact in equivalent incomes; in wages to first order). The gap has two terms. One is a
+      supply term: with finite $\varepsilon$, an occupation employing more workers than its
+      taste mass must pay more. The other is the non-pecuniary wedge. $b=1$ is therefore
+      \emph{not} frictionless: it means equal pay would produce equal occupation shares. A
+      large farm share at a lower farm wage requires $b_{A}>b_{N}$, i.e. attachment to
+      farming or barriers to leaving it (the preference and barrier wedges of
+      Hsieh--Hurst--Jones--Klenow 2019).
+\item \emph{Sectoral labour supply.} Holding $L_{d}$ and other incomes fixed,
+      $\partial\log L_{d\kappa}/\partial\log y_{d\kappa}=\varepsilon\,(1-\pi_{\kappa\mid d})\,e^{\mathcal{Y}}_{d\kappa}$,
+      where $e^{\mathcal{Y}}$ is the income elasticity of equivalent income (\S\ref{sec:migration}).
+      $\varepsilon$ governs how fast labour leaves farming when the farm wage falls.
+\item \emph{The gap moves with structural change.} When farm labour demand falls (Engel
+      effects, import competition, labour-saving mechanisation), finite $\varepsilon$ keeps
+      workers in farming at a falling relative wage. By \eqref{eq:apg} the gap widens until
+      occupation switching and migration catch up. With an integrated market the farm wage
+      cannot fall relative to the local non-farm wage at all.
+\item \emph{Taste heterogeneity versus selection on efficiency.} The alternative is a Roy
+      model with Fr\'echet efficiency draws $z\sim$ Fr\'echet$(\varepsilon)$ and choice of
+      $\max_\kappa b_{d\kappa}w_{d\kappa}z_{\kappa}$ (Lagakos--Waugh 2013; Hsieh et al.\ 2019).
+      There, average earnings in occupation $\kappa$ are proportional to $\Phi_{d}/b_{d\kappa}$:
+      with $b=1$ earnings per worker are equal across occupations, and selection lowers
+      measured farm productivity. Here efficiency is homogeneous, so measured gaps are wage
+      differences: compensating differentials plus a finite supply elasticity. We use the
+      taste version because PIGL demand then aggregates over finitely many income groups.
+      The Fr\'echet version is a tractable extension: PIGL needs
+      $\mathbb{E}[y^{1-\eta}]=s^{1-\eta}\,\Gamma(1-(1-\eta)/\varepsilon)$ over a Fr\'echet
+      income distribution with scale $s$. The two predict different earnings changes for
+      workers who switch sector, which is what panel evidence on the gap uses (e.g.\ Hamory,
+      Kleemans, Li and Miguel 2021).
+\item \emph{Identification.} $\varepsilon$ comes from the response of township sectoral
+      employment to sector-specific labour-demand shocks (shift-share), holding population.
+      Given $\varepsilon$, $b$ comes from within-location earnings gaps via
+      \eqref{eq:gapdecomp}. With sectoral wage data, $b$ and sectoral productivity are
+      separately identified. Without wages they are not (the inversion problem noted in the
+      referee report on the fresh-look memo, \S5).
+\end{enumerate}
+
+\paragraph{Computation.} Inverting labour supply, $w=\text{payments}/(\pi L)$, gives a
+fixed-point map with slope of order $-\varepsilon$. The code instead sets the location wage
+level so that total labour clears ($\sum_\kappa w_{d\kappa}L_{d\kappa}$ equals total labour
+payments), and moves relative wages by a log-Newton step on excess demand,
+$\Delta\log w_{d\kappa}=\log(D_{d\kappa}/S_{d\kappa})/(1+\varepsilon)$. This step is exact when
+$\mathcal{Y}$ is linear in income. At a fixed point every occupation market clears, and as
+$\varepsilon\to\infty$ relative wages stay at one.
+
 \subsection{Non-homothetic final demand}
 Expenditure shares in destination $d$ are
 \begin{equation}
@@ -777,9 +911,12 @@ such that (review \S7.6, a self-contained definition):
 \begin{enumerate}[leftmargin=1.5em]
 \item \textbf{Migration and population.} $\mu_{od,t}$ solves \eqref{eq:mu} given
       $(w,P,\bar\tau,\bar\pi,r,H)$ through disposable income \eqref{eq:ypc} and the
-      real-income index \eqref{eq:realincome}, and $L_{d,t}=\sum_o\mu_{od,t}L_{o,t-1}$.
+      real-income index \eqref{eq:realincome}, and $L_{d,t}=\sum_o\mu_{od,t}L_{o,t-1}$. With
+      occupation choice, the location term is the inclusive value $\Phi_{d,t}$ and
+      $L_{d\kappa,t}=\pi_{\kappa\mid d,t}L_{d,t}$ \eqref{eq:occshare}.
 \item \textbf{Final demand.} $E^{F}_{dj,t}=\psi_{dj,t}\,y^{pc}_{d,t}L_{d,t}$ with the
-      PIGL shares $\psi_{dj,t}$.
+      PIGL shares $\psi_{dj,t}$; with occupation choice, summed over the occupation income
+      groups.
 \item \textbf{Firm behavior.} Cutoffs $\bar\phi,\breve\phi,\tilde\phi$, productivity
       aggregates $Z,\breve Z,\tilde Z$, price indices $P_{djt}$, and revenues
       $R^{trad},R^{new},R^{x}$ satisfy the production, cutoff, price-index, and revenue
@@ -789,7 +926,8 @@ such that (review \S7.6, a self-contained definition):
       with intermediate demand built from $TFC$.
 \item \textbf{Factor markets.} $w_{o,t}$ and $r_{o,t}$ satisfy the labor- and
       land-payment equations of \S\ref{sec:factor} (factor income $=$ true factor cost
-      $TFC$ plus, for labor, the fixed-cost bill $\Phi^{F}_o$).
+      $TFC$ plus, for labor, the fixed-cost bill $\Phi^{F}_o$). With occupation choice, each
+      location--occupation market clears at its own wage \eqref{eq:occclear}.
 \item \textbf{Government and rebate.} $\bar\tau_t$ and $\bar\pi_t$ satisfy the budget
       formulas of \S\ref{sec:gov} (subsidy outlay $\sum s\,TFC$, infrastructure buying goods).
 \item \textbf{Trade balance.} $\mathrm{EX}_t-\mathrm{IM}_t=\mathrm{NX}^{\star}_t$
@@ -948,6 +1086,12 @@ minimum --- items 1--8 --- has landed:
       (\texttt{preferences.equivalent\_income}, \texttt{expected\_utility}; report \S2.3).
 \item \emph{Infeasible surplus targets raise an error} instead of flooring the transfer scale
       (report item 1.3.3).
+\item \emph{Occupation choice and sector-specific wages} (\S\ref{sec:occupation};
+      \texttt{ModelParameters.eps\_occ}, \texttt{ModelExogenousPaths.b\_occ},
+      \texttt{ModelDimensions.occupation\_of\_sector}). \texttt{eps\_occ=None} is the
+      integrated market. Tests check the integrated limit, sector-level clearing,
+      \eqref{eq:occshare}, \eqref{eq:gapdecomp}, the welfare gradient and guess invariance
+      (\texttt{tests/test\_occupation.py}).
 \item \emph{Internationally non-traded sectors} (\texttt{ModelExogenousPaths.nontraded}):
       for $j$ non-traded, the foreign variety drops out of $P_{djt}$ and $\tilde D_{j,t}=0$, so
       there are no imports or exports. Interregional trade is unaffected. The Korea baseline

@@ -18,11 +18,6 @@ from scripts.simulate_policy_shock import (
 )
 
 
-class _Slice:
-    def __init__(self, path, t):
-        self.w, self.r, self.P, self.E = path.w[t], path.r[t], path.P[t], path.E[t]
-
-
 @pytest.fixture(scope="module")
 def policy_paths():
     opts = SolverOptions(max_iter=3000, tol=1e-8, damping=0.25, verbose=False)
@@ -97,7 +92,7 @@ def test_mechanisation_diffuses_faster_under_hci(policy_paths):
 
     def trad_share(inputs, path, t):
         L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        return sector_accounts(inputs, t, L_prev, _Slice(path, t)).traditional_ag_output_share
+        return sector_accounts(inputs, t, L_prev, path.at(t)).traditional_ag_output_share
 
     base_0, base_T = trad_share(baseline_inputs, baseline_path, 0), trad_share(baseline_inputs, baseline_path, -1)
     pol_T = trad_share(policy_inputs, policy_path, -1)

@@ -64,12 +64,6 @@ def _data_column(key: str) -> str:
     return " -> ".join(cells)
 
 
-class _Slice:
-    def __init__(self, path: DynamicEquilibriumPath, t: int):
-        self.w, self.r, self.P, self.E = path.w[t], path.r[t], path.P[t], path.E[t]
-        self.taubar, self.pibar = float(path.taubar[t]), float(path.pibar[t])
-
-
 def macro_moments(inputs: ModelInputs, path: DynamicEquilibriumPath) -> dict[str, np.ndarray]:
     moments = history_moments(inputs, path)
     params = inputs.params
@@ -85,7 +79,7 @@ def macro_moments(inputs: ModelInputs, path: DynamicEquilibriumPath) -> dict[str
         )
         ratio.append(y_eq[RURAL] / np.average(y_eq[URBAN], weights=L[URBAN]))
         L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        cutoff.append(cutoff_ordering_violation(inputs, t, L_prev, _Slice(path, t)))
+        cutoff.append(cutoff_ordering_violation(inputs, t, L_prev, path.at(t)))
     moments["rural_urban_real_income"] = np.asarray(ratio)
     moments["cutoff_violation"] = np.asarray(cutoff)
     return moments

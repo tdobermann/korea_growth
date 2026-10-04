@@ -41,6 +41,20 @@ class ModelDimensions:
     # Sectors counted as agriculture in reporting (employment, value added). Default: the
     # agri_sector alone.
     farm_sectors: Sequence[str] = ()
+    # Occupation of each sector (J,) as integers 0..O-1: sectors in the same occupation share
+    # one wage within a location (e.g. rice and other crops are both farming). Default: each
+    # sector is its own occupation. Used only with params.eps_occ.
+    occupation_of_sector: Sequence[int] = ()
+
+    @property
+    def occ_idx(self) -> np.ndarray:
+        if self.occupation_of_sector:
+            return np.asarray(self.occupation_of_sector, dtype=int)
+        return np.arange(len(self.sectors))
+
+    @property
+    def O(self) -> int:
+        return int(self.occ_idx.max()) + 1
 
     @property
     def farm_idx(self) -> list[int]:
@@ -102,6 +116,13 @@ class ModelParameters:
     # terms as wages grow (docs/fresh_look.md 2.5).
     fixed_costs_in_labor: bool = False
 
+    # Occupation choice (model.tex, "Occupation choice and sector-specific wages"). Within a
+    # location, workers choose a sector with i.i.d. Gumbel taste shocks of scale 1/eps_occ,
+    # nested inside the location choice (nested logit; requires eps_occ >= nu). Each
+    # location-sector then has its own wage. None = integrated local labour market: one wage
+    # per location (the eps_occ -> infinity limit with unit wedges).
+    eps_occ: Optional[float] = None
+
 
 @dataclass(frozen=True)
 class ModelExogenousPaths:
@@ -162,6 +183,11 @@ class ModelExogenousPaths:
     # unaffected. None = every sector traded.
     nontraded: Optional[Array] = None  # (J,)
 
+    # Non-pecuniary occupation wedges b_{d,o,t} > 0 (T, N, O): the value of working in
+    # occupation o in location d relative to its pay (attachment to farming, entry barriers,
+    # disamenity). Used only when params.eps_occ is set. None = all ones.
+    b_occ: Optional[Array] = None  # (T, N, O)
+
     def is_nontraded(self, j: int) -> bool:
         return self.nontraded is not None and bool(self.nontraded[j])
 
@@ -194,12 +220,12 @@ class StaticEquilibrium:
     """Static equilibrium objects for a single time period."""
 
     t: int
-    w: Array  # (N,)
+    w: Array  # (N,) employment-weighted average wage
     r: Array  # (N,)
     P: Array  # (N, J)
     E: Array  # (N, J)
     L: Array  # (N,)
-    y_pc: Array  # (N,)
+    y_pc: Array  # (N,) average per-capita income
     taubar: float
     pibar: float
 
@@ -207,12 +233,18 @@ class StaticEquilibrium:
     max_residual: float
     iters: int
 
+    # Sector-specific labour market: wages, employment and per-worker income by (location,
+    # sector). With an integrated labour market every column of w_sector equals w.
+    w_sector: Optional[Array] = None  # (N, J)
+    L_sector: Optional[Array] = None  # (N, J)
+    y_sector: Optional[Array] = None  # (N, J)
+
 
 @dataclass(frozen=True)
 class DynamicEquilibriumPath:
     """Dynamic equilibrium path (sequence of static equilibria)."""
 
-    w: Array  # (T, N)
+    w: Array  # (T, N) employment-weighted average wage
     r: Array  # (T, N)
     P: Array  # (T, N, J)
     E: Array  # (T, N, J)
@@ -224,5 +256,33 @@ class DynamicEquilibriumPath:
     # Solver diagnostics
     iters: Array  # (T,)
     max_residual: Array  # (T,)
+
+    # Sector-specific labour market (see StaticEquilibrium)
+    w_sector: Optional[Array] = None  # (T, N, J)
+    L_sector: Optional[Array] = None  # (T, N, J)
+    y_sector: Optional[Array] = None  # (T, N, J)
+
+    def at(self, t: int) -> StaticEquilibrium:
+        """The static equilibrium of period t."""
+        sec = (lambda a: None if a is None else a[t])
+        return StaticEquilibrium(
+            t=t, w=self.w[t], r=self.r[t], P=self.P[t], E=self.E[t], L=self.L[t],
+            y_pc=self.y_pc[t], taubar=float(self.taubar[t]), pibar=float(self.pibar[t]),
+            max_residual=float(self.max_residual[t]), iters=int(self.iters[t]),
+            w_sector=sec(self.w_sector), L_sector=sec(self.L_sector), y_sector=sec(self.y_sector),
+        )
+
+
+def sector_wages(eq) -> Array:
+    """Wages by (location, sector) of an equilibrium-like object: ``w_sector`` when present,
+    else ``w`` (one wage per location, or already (N, J))."""
+    w_sector = getattr(eq, "w_sector", None)
+    return np.asarray(eq.w if w_sector is None else w_sector, dtype=float)
+
+
+def sector_incomes(eq) -> Array:
+    """Per-worker income by (location, sector) when present, else per-capita income (N,)."""
+    y_sector = getattr(eq, "y_sector", None)
+    return np.asarray(eq.y_pc if y_sector is None else y_sector, dtype=float)
 
 

@@ -43,18 +43,6 @@ from scripts.simulate_policy_shock import build_baseline_inputs
 from scripts.solve_toy import build_toy_inputs
 
 
-class _Eq:
-    """Lightweight view of a static equilibrium slice for the accounting helpers."""
-
-    def __init__(self, path, t):
-        self.w = path.w[t]
-        self.r = path.r[t]
-        self.P = path.P[t]
-        self.E = path.E[t]
-        self.taubar = float(path.taubar[t])
-        self.pibar = float(path.pibar[t])
-
-
 @pytest.fixture(scope="module")
 def toy_solution():
     inputs = build_toy_inputs()
@@ -68,7 +56,7 @@ def test_walras_and_resource_constraint_hold(toy_solution):
     inputs, path = toy_solution
     for t in range(inputs.dims.T):
         L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        agg = aggregate_accounting(inputs, t, L_prev, _Eq(path, t))
+        agg = aggregate_accounting(inputs, t, L_prev, path.at(t))
 
         # Aggregate income equals aggregate final expenditure (guards land-rent and
         # transfer inclusion; model_review.md 1.1, 1.5).
@@ -112,7 +100,7 @@ def test_net_exports_are_pinned_by_nx_gdp():
     )
     for t in range(inputs.dims.T):
         L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        agg = aggregate_accounting(inputs, t, L_prev, _Eq(path, t))
+        agg = aggregate_accounting(inputs, t, L_prev, path.at(t))
 
         assert agg["NX"] / agg["GDP"] == pytest.approx(-0.05, abs=1e-8)
         assert abs(agg["nx_residual"]) < 1e-8
@@ -254,7 +242,7 @@ def test_sector_accounts_add_up(toy_solution):
     inputs, path = toy_solution
     for t in range(inputs.dims.T):
         L_prev = inputs.exog.L0 if t == 0 else path.L[t - 1]
-        eq = _Eq(path, t)
+        eq = path.at(t)
         acc = sector_accounts(inputs, t, L_prev, eq)
         agg = aggregate_accounting(inputs, t, L_prev, eq)
         # Workers (variable + fixed-cost labour) sum to each region's population.
@@ -306,7 +294,7 @@ def test_nontraded_sector_has_no_foreign_trade():
         np.testing.assert_allclose(
             st.P_implied, (st.B_domestic @ tau_pow) ** (1.0 / (1.0 - inputs.params.sigma))
         )
-        agg = aggregate_accounting(inputs, t, L_prev, _Eq(path, t))
+        agg = aggregate_accounting(inputs, t, L_prev, path.at(t))
         assert abs(agg["resource_residual"]) < 1e-8
         assert abs(agg["nx_residual"]) < 1e-8
 
@@ -350,7 +338,7 @@ def test_export_demand_elasticity_is_separate():
     sigma, sigma_x = low.params.sigma, 1.5
     for t in range(low.dims.T):
         L_prev = low.exog.L0 if t == 0 else path.L[t - 1]
-        agg = aggregate_accounting(low, t, L_prev, _Eq(path, t))
+        agg = aggregate_accounting(low, t, L_prev, path.at(t))
         assert abs(agg["nx_residual"]) < 1e-8
         for j in range(low.dims.J):
             st = compute_sector_state(

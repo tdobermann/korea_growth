@@ -182,7 +182,9 @@ Create a `korea_growth.types.ModelInputs` object containing:
 - dimensions: time labels, region names, sector names
 - parameters: `sigma`, `theta`, `kappa`, `xi`, `rho_j`, `iota`, `eta`, `nu`,
   `alpha_j`, `v_j`, and optionally `sigma_x` (aggregate elasticity of foreign demand for
-  exports; default `sigma`) and `fixed_costs_in_labor` (fixed costs as labour requirements)
+  exports; default `sigma`), `fixed_costs_in_labor` (fixed costs as labour requirements), and
+  `eps_occ` (occupation-choice elasticity; sector-specific wages, default one wage per
+  location) with occupation wedges `b_occ` and `ModelDimensions.occupation_of_sector`
 - exogenous paths: `A`, `F`, `Fbreve`, `Ftilde`, `s`, `tau`, `tautilde`,
   `delta`, `Vbar`, `H`, `Dtilde`, `ptilde`, `M`, the technology-share arrays, and optionally
   `nx_gdp` (net exports as a share of GDP; default balanced trade)
@@ -211,6 +213,9 @@ The current tests cover:
 - the history calibration (targets within the achieved fit, observed 1965 population), and
   faster mechanisation diffusion under HCI
 - internationally non-traded sectors and the amenity inversion
+- occupation choice with sector-specific wages: the integrated limit, sector-level labour
+  market clearing, the nested-logit shares and wage-gap decomposition, the welfare gradient,
+  and guess invariance (`tests/test_occupation.py`)
 - directional policy effects in the HCI simulation
 - robustness of the production block when input-output matrices contain zero shares
 
